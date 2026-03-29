@@ -1,0 +1,2 @@
+DcsBiosEasyMode	KEYWORD1
+DcsBios	KEYWORD1
