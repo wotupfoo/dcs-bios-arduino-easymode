@@ -6,7 +6,7 @@ The goal is simple:
 
 1. Install the software you need.
 2. Open a blank Arduino sketch.
-3. Find the right code snippet in Bort.
+3. Find the right code snippet in BORT (The DCS-<u>B</u>I<u>O</u>S <u>R</u>eference <u>T</u>ool).
 4. Copy and paste it into the blank sketch.
 5. Make only a few small changes for your own hardware.
 
@@ -36,6 +36,10 @@ Examples:
 
 This library sits on top of DCS-BIOS and tries to make the code read more like real instrument setup.
 
+The DCS-BIOS Easy Mode library used in this guide comes from:
+
+`https://github.com/wotupfoo/dcs-bios-arduino-easymode`
+
 Instead of thinking in low-level pulse widths or motor internals, the idea is to think in terms such as:
 
 - minimum angle
@@ -44,11 +48,11 @@ Instead of thinking in low-level pulse widths or motor internals, the idea is to
 - clockwise or counter-clockwise
 - zero at one end or zero in the middle
 
-### Bort
+### Bort-EasyMode
 
-Bort is the reference and code-snippet tool.
+Bort-EasyMode is the Easy Mode version of Bort, the DCS-BIOS reference and code-snippet tool.
 
-You use Bort to:
+You use Bort-EasyMode to:
 
 - look up the telemetry name you want
 - see live values
@@ -62,7 +66,7 @@ For a first Easy Mode project, install these four things:
 1. Arduino IDE
 2. DCS World
 3. DCS-BIOS Skunkworks
-4. Bort
+4. Bort-EasyMode
 
 You will also need the `DCS-BIOS Easy Mode` Arduino library available inside Arduino IDE.
 
@@ -72,10 +76,10 @@ If you are new, follow this order:
 
 1. Install Arduino IDE.
 2. Install DCS-BIOS Skunkworks so DCS can export telemetry.
-3. Install Bort.
+3. Install Bort-EasyMode.
 4. Install the Arduino libraries.
 5. Open the blank Easy Mode sketch.
-6. Open Bort and find a telemetry item.
+6. Open Bort-EasyMode and find a telemetry item.
 7. Copy one snippet.
 8. Paste it into the blank sketch.
 9. Change only pins and any obvious instrument settings.
@@ -115,7 +119,7 @@ What matters is that after installation:
 - DCS is allowed to export data
 - live telemetry is available while DCS is running
 
-For Bort, the important JSON files are normally found in a folder like:
+For Bort-EasyMode, the important JSON files are normally found in a folder like:
 
 `Saved Games\DCS\Scripts\DCS-BIOS\doc\json`
 
@@ -123,11 +127,15 @@ Photo placeholder:
 
 - Add screenshot of the DCS-BIOS folder in Saved Games.
 
-## Step 3: Install Bort
+## Step 3: Install Bort-EasyMode
 
-Install and run Bort.
+Install the DCS-BIOS Easy Mode version of Bort from:
 
-When Bort first opens, it may need to be pointed at the DCS-BIOS JSON folder.
+`https://github.com/wotupfoo/Bort-EasyMode`
+
+Then run Bort-EasyMode.
+
+When Bort-EasyMode first opens, it may need to be pointed at the DCS-BIOS JSON folder.
 
 If that happens:
 
@@ -135,15 +143,19 @@ If that happens:
 2. Choose `Select dcs-bios location`
 3. Point it to the DCS-BIOS JSON folder
 
-Bort is mainly used as a lookup and copy-paste tool. Think of it as the parts catalog and code generator for the project.
+Bort-EasyMode is mainly used as a lookup and copy-paste tool. Think of it as the parts catalog and code generator for the project.
 
 Photo placeholder:
 
-- Add screenshot of Bort showing a selected telemetry item and its code snippets.
+- Add screenshot of Bort-EasyMode showing a selected telemetry item and its code snippets.
 
 ## Step 4: Install The Arduino Libraries
 
 You need the Arduino side of DCS-BIOS and the Easy Mode library available inside Arduino IDE.
+
+The Easy Mode library for this guide comes from:
+
+`https://github.com/wotupfoo/dcs-bios-arduino-easymode`
 
 For a beginner, the easiest mental model is:
 
@@ -169,7 +181,7 @@ A blank starting sketch has been included for beginners:
 
 `examples/Blank_EasyMode_Start/Blank_EasyMode_Start.ino`
 
-This is the recommended first file to open when building from a Bort snippet.
+This is the recommended first file to open when building from a Bort-EasyMode snippet.
 
 It already contains:
 
@@ -181,11 +193,11 @@ It already contains:
 
 If you are unsure where copied code belongs, start with this file.
 
-## Step 6: Start DCS And Open Bort
+## Step 6: Start DCS And Open Bort-EasyMode
 
 Start DCS World and load into a flight where the instrument you want can be seen working.
 
-Then open Bort and:
+Then open Bort-EasyMode and:
 
 1. Find the aircraft or CommonData item you want
 2. Search for the gauge or control
@@ -206,7 +218,7 @@ This is the easiest beginner method.
 
 ### What To Copy
 
-From Bort, copy the hardware snippet you want.
+From Bort-EasyMode, copy the hardware snippet you want.
 
 Examples:
 

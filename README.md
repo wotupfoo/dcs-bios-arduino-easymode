@@ -1,21 +1,40 @@
-# DCS-BIOS Arduino Library
+# DCS-BIOS Easy Mode Arduino Library
+This library extends DCS-BIOS from Skunkworks adding support for Stepper motors and greatly simplifies the code that needs to be copied and pasted into your Arduino project. See the documentation for more on the philosophy of this project.
 
-> DCS-Skunkworks is looking for additional contributors for this repository.  If you have strong C coding skills and a passion for DCS-BIOS, please contact talbotmcinnis@alumni.uwo.ca
+The DCS-BIOS Easy Mode library is available here:
 
-This is an Arduino library that makes it easy to write sketches that talk to DCS-BIOS.
+https://github.com/wotupfoo/dcs-bios-arduino-easymode
 
-For more information and documentation, see the [DCS-BIOS FlightPanels Project](https://github.com/DCSFlightpanels).  The example "OneOfEverything" is a good place to start looking for controls to use.
+The companion reference and code-snippet tool for this library is Bort-EasyMode:
 
-## Origins
+https://github.com/wotupfoo/Bort-EasyMode
 
-DCS-BIOS was originally developed here, [DCS-BIOS project.](https://github.com/dcs-bios/dcs-bios)  DCS-BIOS Flightpanels forked all of DCS-BIOS in order to initially provide support for Saitek Flight Panels.  As of Nov, 2020, the original project has received limited support (despite a major update for HUB), and FlightPanels is gaining in popularity due to it's support.  Late in 2020, this fork of the arduino-only portion was created to become the "official" branch associated with the FlightPanels DCS-BIOS side.
+Do not use the Skunkworks version of Bort with this Easy Mode workflow. Use Bort-EasyMode instead.
 
-## Support & Documentation
+Bort-EasyMode is intended as a superset of the Skunkworks Bort experience. It keeps the normal DCS-BIOS reference and lookup role, while also adding the Easy Mode snippets, simplified hardware-focused examples, and the more beginner-friendly workflow that matches this library.
 
-This is a community maintained plugin.  Support is best found at the DCS-Flightpanels discord channel.  The wiki is very much a work in progress, and can be found here: https://github.com/DCSFlightpanels/dcs-bios-arduino-library/wiki
+The beginner guide for this project is currently available here in Markdown form:
 
-## Releasing
+[documentation/Example_Guide.md](documentation/Example_Guide.md)
 
-1. Bump version number in library.properties
-2. Run make_release, providing the same version number when prompted.
-3. Manually make a zip file of the folder created in /Releases, and upload to github.
+## Relationship To DCS-BIOS Skunkworks And The Original Project
+
+DCS-BIOS Easy Mode does not replace DCS-BIOS Skunkworks. It builds on top of it.
+
+In simple terms:
+
+- the original DCS-BIOS project created the foundation
+- the Skunkworks and Flightpanels work carried that foundation forward and became the practical base many builders use today
+- DCS-BIOS Easy Mode leverages that Skunkworks Arduino library layer and adds a simpler, more copy-paste-friendly workflow for cockpit builders
+
+If you want the upstream project details, background, and broader DCS-BIOS information, see these resources:
+
+- Original DCS-BIOS project: https://github.com/dcs-bios/dcs-bios
+- DCS Flightpanels project: https://github.com/DCSFlightpanels
+- DCS-BIOS Arduino library wiki: https://github.com/DCSFlightpanels/dcs-bios-arduino-library/wiki
+
+## Support And Documentation
+
+For Easy Mode usage, examples, and beginner-facing guidance, start with the documentation in this repository.
+
+For upstream DCS-BIOS support and broader project discussion, the DCS-Flightpanels community resources are still the right place to look.
