@@ -12,6 +12,11 @@ struct ServoProfile {
     static constexpr int kTravelDeg  = DEFAULT_SERVO_TRAVEL_DEG;
 };
 
+// Generic servo defaults.
+// These intentionally track the common Arduino Servo defaults so the plain
+// EasyServo name feels like the natural first choice.
+using GenericServoProfile = ServoProfile<544, 2400, 180>;
+
 // SG90-style defaults.
 // Travel varies a little from unit to unit, but 500..2400us and 180 degrees
 // are good easy-mode defaults for cockpit instruments.
@@ -21,11 +26,14 @@ template<typename ProfileT>
 class EasyServoOutputT : public Int16Buffer {
 private:
     Servo servo_;
+    unsigned int mask_;
+    unsigned char shift_;
     char pin_;
     int minAngleDeg_;
     int maxAngleDeg_;
     int trimDeg_;
     bool reverse_;
+    unsigned int inputMaxValue_;
 
     static long clampLong(long v, long lo, long hi) {
         if (v < lo) return lo;
@@ -42,6 +50,10 @@ private:
             ProfileT::kMinPulseUs,
             ProfileT::kMaxPulseUs
         );
+    }
+
+    unsigned int readSourceValue() {
+        return ((this->Int16Buffer::getData()) & mask_) >> shift_;
     }
 
 public:
@@ -74,13 +86,38 @@ public:
         int minAngleDeg = 0,       // Minimum needle angle in degrees for the lowest DCS-BIOS value
         int maxAngleDeg = 120,     // Maximum needle angle in degrees for the highest DCS-BIOS value
         bool reverse = false,      // Reverse the direction (true or false)
-        int trimDeg = 0            // Trim Degrees: rotate the whole scale to match the printed dial face
+        int trimDeg = 0,           // Trim Degrees: rotate the whole scale to match the printed dial face
+        unsigned int inputMaxValue = 65535 // Maximum incoming DCS-BIOS value for this source
     ) : Int16Buffer(address),
+        mask_(0xFFFF),
+        shift_(0),
         pin_(pin),
         minAngleDeg_(minAngleDeg),
         maxAngleDeg_(maxAngleDeg),
         trimDeg_(trimDeg),
-        reverse_(reverse) {
+        reverse_(reverse),
+        inputMaxValue_(inputMaxValue ? inputMaxValue : 65535) {
+    }
+
+    EasyServoOutputT(
+        unsigned int address,      // DCS World: memory address with the value
+        unsigned int mask,         // Bit mask for packed integer fields
+        unsigned char shift,       // Right shift for packed integer fields
+        char pin,                  // Arduino pin connected to the servo signal wire
+        int minAngleDeg = 0,       // Minimum needle angle in degrees for the lowest DCS-BIOS value
+        int maxAngleDeg = 120,     // Maximum needle angle in degrees for the highest DCS-BIOS value
+        bool reverse = false,      // Reverse the direction (true or false)
+        int trimDeg = 0,           // Trim Degrees: rotate the whole scale to match the printed dial face
+        unsigned int inputMaxValue = 65535 // Maximum incoming DCS-BIOS value for this source
+    ) : Int16Buffer(address),
+        mask_(mask),
+        shift_(shift),
+        pin_(pin),
+        minAngleDeg_(minAngleDeg),
+        maxAngleDeg_(maxAngleDeg),
+        trimDeg_(trimDeg),
+        reverse_(reverse),
+        inputMaxValue_(inputMaxValue ? inputMaxValue : 65535) {
     }
 
     virtual void loop() override {
@@ -98,7 +135,7 @@ public:
                 outMax = t;
             }
 
-            long angleDeg = map((long)getData(), 0L, 65535L, outMin, outMax);
+            long angleDeg = map((long)readSourceValue(), 0L, (long)inputMaxValue_, outMin, outMax);
             servo_.writeMicroseconds(angleToPulse(angleDeg));
         }
     }
@@ -106,7 +143,15 @@ public:
     void setTrimDeg(int trimDeg) { trimDeg_ = trimDeg; }
 };
 
-using EasySg90ServoOutput = EasyServoOutputT<Sg90Profile>;
+// Public naming scheme for snippet generators and no-code users:
+//   EasyServo        -> generic default servo
+//   EasyServo_SG90   -> SG90-specific defaults
+using EasyServo = EasyServoOutputT<GenericServoProfile>;
+using EasyServo_SG90 = EasyServoOutputT<Sg90Profile>;
+
+// Backwards-compatible aliases.
+using EasyServoOutput = EasyServo;
+using EasySg90ServoOutput = EasyServo_SG90;
 
 } // namespace DcsBios
 

@@ -20,6 +20,18 @@ struct StepperProfile {
     static constexpr bool kSwapMiddlePins = SWAP_MIDDLE_PINS;
 };
 
+// Generic directly-driven 4-wire stepper defaults.
+// This is a sensible baseline for hobby steppers without gearbox-specific
+// assumptions. More specific hardware can expose their own flat aliases.
+using GenericStepperProfile = StepperProfile<
+    200,
+    AccelStepper::FULL4WIRE,
+    60,   // 6.0 RPM normal running speed
+    120,  // 12.0 RPM/sec acceleration
+    10,   // 1.0 RPM homing speed
+    false
+>;
+
 // 28BYJ-48 on a ULN2003 board.
 // 4096 half-steps per output revolution is the common hobby value.
 using Stepper28Byj48Profile = StepperProfile<
@@ -46,11 +58,14 @@ private:
 
     AccelStepper stepper_;
 
+    unsigned int mask_;
+    unsigned char shift_;
     bool continuous_;
     float minAngleDeg_;
     float maxAngleDeg_;
     float trimDeg_;
     bool reverse_;
+    unsigned int inputMaxValue_;
 
     uint8_t zeroPin_;
     bool zeroActiveLow_;
@@ -99,6 +114,10 @@ private:
         return best;
     }
 
+    unsigned int readSourceValue() {
+        return ((this->Int16Buffer::getData()) & mask_) >> shift_;
+    }
+
     bool isZeroActive() const {
         if (zeroPin_ == PIN_NONE) return false;
         int value = digitalRead(zeroPin_);
@@ -123,12 +142,12 @@ private:
             outMax = temp;
         }
 
-        float targetAngleDeg = outMin + ((outMax - outMin) * ((float)raw / 65535.0f));
+        float targetAngleDeg = outMin + ((outMax - outMin) * ((float)raw / (float)inputMaxValue_));
         return angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
     }
 
     long rawToContinuousSteps(unsigned int raw) const {
-        float targetAngleDeg = ((float)raw / 65535.0f) * 360.0f;
+        float targetAngleDeg = ((float)raw / (float)inputMaxValue_) * 360.0f;
 
         if (reverse_) targetAngleDeg = -targetAngleDeg;
         targetAngleDeg += trimDeg_;
@@ -184,13 +203,15 @@ private:
         uint8_t zeroPin,
         bool zeroActiveLow,
         int8_t homeDirection,
-        float zeroOffsetDeg
+        float zeroOffsetDeg,
+        unsigned int inputMaxValue
     ) {
         continuous_ = continuous;
         minAngleDeg_ = minAngleDeg;
         maxAngleDeg_ = maxAngleDeg;
         trimDeg_ = trimDeg;
         reverse_ = reverse;
+        inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;
         zeroPin_ = zeroPin;
         zeroActiveLow_ = zeroActiveLow;
         homeDirection_ = (homeDirection < 0) ? -1 : 1;
@@ -233,7 +254,8 @@ public:
         uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
         bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
         int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
-        float zeroOffsetDeg = 0.0f               // Zero Offset Degrees: fine adjustment after homing
+        float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
+        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -241,7 +263,9 @@ public:
             ProfileT::kSwapMiddlePins ? pin3 : pin2,
             ProfileT::kSwapMiddlePins ? pin2 : pin3,
             pin4
-        ) {
+        ),
+        mask_(0xFFFF),
+        shift_(0) {
         commonInit(
             true,
             0.0f,
@@ -253,7 +277,51 @@ public:
             zeroPin,
             zeroActiveLow,
             homeDirection,
-            zeroOffsetDeg
+            zeroOffsetDeg,
+            inputMaxValue
+        );
+    }
+
+    EasyStepperOutputT(
+        unsigned int address,                    // DCS World: memory address with the value
+        unsigned int mask,                       // Bit mask for packed integer fields
+        unsigned char shift,                     // Right shift for packed integer fields
+        uint8_t pin1,                            // Stepper driver input pin 1
+        uint8_t pin2,                            // Stepper driver input pin 2
+        uint8_t pin3,                            // Stepper driver input pin 3
+        uint8_t pin4,                            // Stepper driver input pin 4
+        bool reverse = false,                    // Reverse the direction (true or false)
+        float trimDeg = 0.0f,                    // Trim Degrees: rotate the whole repeating scale around the dial face
+        float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
+        float accelRpmPerSec = ProfileT::kDefaultAccelRpmPerSec, // Maximum Acceleration in RPM per second
+        uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
+        bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
+        int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
+        float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
+        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
+    ) : Int16Buffer(address),
+        stepper_(
+            ProfileT::kInterface,
+            pin1,
+            ProfileT::kSwapMiddlePins ? pin3 : pin2,
+            ProfileT::kSwapMiddlePins ? pin2 : pin3,
+            pin4
+        ),
+        mask_(mask),
+        shift_(shift) {
+        commonInit(
+            true,
+            0.0f,
+            0.0f,
+            reverse,
+            trimDeg,
+            maxRpm,
+            accelRpmPerSec,
+            zeroPin,
+            zeroActiveLow,
+            homeDirection,
+            zeroOffsetDeg,
+            inputMaxValue
         );
     }
 
@@ -281,7 +349,8 @@ public:
         uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
         bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
         int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
-        float zeroOffsetDeg = 0.0f               // Zero Offset Degrees: fine adjustment after homing
+        float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
+        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -289,7 +358,9 @@ public:
             ProfileT::kSwapMiddlePins ? pin3 : pin2,
             ProfileT::kSwapMiddlePins ? pin2 : pin3,
             pin4
-        ) {
+        ),
+        mask_(0xFFFF),
+        shift_(0) {
         commonInit(
             false,
             minAngleDeg,
@@ -301,7 +372,53 @@ public:
             zeroPin,
             zeroActiveLow,
             homeDirection,
-            zeroOffsetDeg
+            zeroOffsetDeg,
+            inputMaxValue
+        );
+    }
+
+    EasyStepperOutputT(
+        unsigned int address,                    // DCS World: memory address with the value
+        unsigned int mask,                       // Bit mask for packed integer fields
+        unsigned char shift,                     // Right shift for packed integer fields
+        uint8_t pin1,                            // Stepper driver input pin 1
+        uint8_t pin2,                            // Stepper driver input pin 2
+        uint8_t pin3,                            // Stepper driver input pin 3
+        uint8_t pin4,                            // Stepper driver input pin 4
+        float minAngleDeg,                       // Minimum needle angle in degrees for the lowest DCS-BIOS value
+        float maxAngleDeg,                       // Maximum needle angle in degrees for the highest DCS-BIOS value
+        bool reverse = false,                    // Reverse the direction (true or false)
+        float trimDeg = 0.0f,                    // Trim Degrees: rotate the whole scale to match the printed dial face
+        float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
+        float accelRpmPerSec = ProfileT::kDefaultAccelRpmPerSec, // Maximum Acceleration in RPM per second
+        uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
+        bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
+        int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
+        float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
+        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
+    ) : Int16Buffer(address),
+        stepper_(
+            ProfileT::kInterface,
+            pin1,
+            ProfileT::kSwapMiddlePins ? pin3 : pin2,
+            ProfileT::kSwapMiddlePins ? pin2 : pin3,
+            pin4
+        ),
+        mask_(mask),
+        shift_(shift) {
+        commonInit(
+            false,
+            minAngleDeg,
+            maxAngleDeg,
+            reverse,
+            trimDeg,
+            maxRpm,
+            accelRpmPerSec,
+            zeroPin,
+            zeroActiveLow,
+            homeDirection,
+            zeroOffsetDeg,
+            inputMaxValue
         );
     }
 
@@ -312,10 +429,11 @@ public:
         }
 
         if (hasUpdatedData()) {
+            unsigned int sourceValue = readSourceValue();
             if (continuous_) {
-                stepper_.moveTo(rawToContinuousSteps(getData()));
+                stepper_.moveTo(rawToContinuousSteps(sourceValue));
             } else {
-                stepper_.moveTo(rawToBoundedSteps(getData()));
+                stepper_.moveTo(rawToBoundedSteps(sourceValue));
             }
         }
 
@@ -364,7 +482,15 @@ public:
     }
 };
 
-using Easy28Byj48Output = EasyStepperOutputT<Stepper28Byj48Profile>;
+// Public naming scheme for snippet generators and no-code users:
+//   EasyStepper              -> generic default 4-wire stepper
+//   EasyStepper_28BYJ48      -> 28BYJ-48-specific defaults
+using EasyStepper = EasyStepperOutputT<GenericStepperProfile>;
+using EasyStepper_28BYJ48 = EasyStepperOutputT<Stepper28Byj48Profile>;
+
+// Backwards-compatible aliases.
+using EasyStepperOutput = EasyStepper;
+using Easy28Byj48Output = EasyStepper_28BYJ48;
 
 } // namespace DcsBios
 
