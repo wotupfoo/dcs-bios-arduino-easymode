@@ -19,7 +19,7 @@ The beginner guide for this project is currently available here in Markdown form
 
 ## Relationship To DCS-BIOS Skunkworks And The Original Project
 
-DCS-BIOS Easy Mode does not replace DCS-BIOS Skunkworks. It builds on top of it.
+DCS-BIOS Easy Mode does not replace DCS-BIOS Skunkworks. It builds on top of it. You still need to install Skunkworks DCS-BIOS alongside this DCS-BIOS Easy Mode.
 
 In simple terms:
 
