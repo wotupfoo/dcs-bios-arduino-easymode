@@ -95,3 +95,7 @@ node_modules/
 # DO NOT ignore submodule folders themselves
 # Git tracks them as special entries
 #########################################################
+
+# Blocking doc upload for now
+*.docx
+*.pdf
