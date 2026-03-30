@@ -1,6 +1,8 @@
 #ifndef __DCSBIOS_EASY_SERVOS_H
 #define __DCSBIOS_EASY_SERVOS_H
 
+#include <math.h>
+
 namespace DcsBios {
 
 template<int DEFAULT_MIN_PULSE_US,
@@ -39,6 +41,10 @@ private:
         if (v < lo) return lo;
         if (v > hi) return hi;
         return v;
+    }
+
+    static int roundToInt(float value) {
+        return (int)lroundf(value);
     }
 
     unsigned int angleToPulse(long angleDeg) const {
@@ -84,7 +90,7 @@ public:
         unsigned int address,      // DCS World: memory address with the value
         char pin,                  // Arduino pin connected to the servo signal wire
         int minAngleDeg = 0,       // Minimum needle angle in degrees for the lowest DCS-BIOS value
-        int maxAngleDeg = 120,     // Maximum needle angle in degrees for the highest DCS-BIOS value
+        int maxAngleDeg = ProfileT::kTravelDeg, // Maximum needle angle in degrees for the highest DCS-BIOS value
         bool reverse = false,      // Reverse the direction (true or false)
         int trimDeg = 0,           // Trim Degrees: rotate the whole scale to match the printed dial face
         unsigned int inputMaxValue = 65535 // Maximum incoming DCS-BIOS value for this source
@@ -105,7 +111,7 @@ public:
         unsigned char shift,       // Right shift for packed integer fields
         char pin,                  // Arduino pin connected to the servo signal wire
         int minAngleDeg = 0,       // Minimum needle angle in degrees for the lowest DCS-BIOS value
-        int maxAngleDeg = 120,     // Maximum needle angle in degrees for the highest DCS-BIOS value
+        int maxAngleDeg = ProfileT::kTravelDeg, // Maximum needle angle in degrees for the highest DCS-BIOS value
         bool reverse = false,      // Reverse the direction (true or false)
         int trimDeg = 0,           // Trim Degrees: rotate the whole scale to match the printed dial face
         unsigned int inputMaxValue = 65535 // Maximum incoming DCS-BIOS value for this source
@@ -140,6 +146,16 @@ public:
         }
     }
 
+    void setMinAngle(float angleDeg) { minAngleDeg_ = roundToInt(angleDeg); }
+
+    void setMaxAngle(float angleDeg) { maxAngleDeg_ = roundToInt(angleDeg); }
+
+    void setDirection(EasyModeDir direction) { reverse_ = (direction == EasyModeDir::CCW); }
+
+    void setInputMaxValue(unsigned int inputMaxValue) {
+        inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;
+    }
+
     void setTrimDeg(int trimDeg) { trimDeg_ = trimDeg; }
 };
 
@@ -147,11 +163,27 @@ public:
 //   EasyServo        -> generic default servo
 //   EasyServo_SG90   -> SG90-specific defaults
 using EasyServo = EasyServoOutputT<GenericServoProfile>;
-using EasyServo_SG90 = EasyServoOutputT<Sg90Profile>;
+
+class EasyServo_SG90 : public EasyServoOutputT<Sg90Profile> {
+public:
+    EasyServo_SG90(
+        unsigned int address,
+        char pin
+    ) : EasyServoOutputT<Sg90Profile>(address, pin) {
+    }
+
+    EasyServo_SG90(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        char pin
+    ) : EasyServoOutputT<Sg90Profile>(address, mask, shift, pin) {
+    }
+};
 
 // Backwards-compatible aliases.
 using EasyServoOutput = EasyServo;
-using EasySg90ServoOutput = EasyServo_SG90;
+using EasySg90ServoOutput = EasyServoOutputT<Sg90Profile>;
 
 } // namespace DcsBios
 

@@ -61,11 +61,15 @@ private:
     unsigned int mask_;
     unsigned char shift_;
     bool continuous_;
+    bool continuousUseModulo_;
+    bool continuousUseShortestPath_;
+    bool continuousInputIsAngle_;
     float minAngleDeg_;
     float maxAngleDeg_;
     float trimDeg_;
     bool reverse_;
     unsigned int inputMaxValue_;
+    bool inputZeroCentered_;
 
     uint8_t zeroPin_;
     bool zeroActiveLow_;
@@ -83,6 +87,22 @@ private:
 
     static long roundToLong(float value) {
         return (long)lroundf(value);
+    }
+
+    float rawToCenteredFraction(unsigned int raw) const {
+        unsigned int midLower = inputMaxValue_ / 2U;
+        unsigned int midUpper = (inputMaxValue_ + 1U) / 2U;
+
+        if (raw <= midLower) {
+            if (midLower == 0U) return 0.0f;
+            return ((float)raw / (float)midLower) - 1.0f;
+        }
+
+        if (raw < midUpper) return 0.0f;
+
+        unsigned int positiveSpan = inputMaxValue_ - midUpper;
+        if (positiveSpan == 0U) return 0.0f;
+        return (float)(raw - midUpper) / (float)positiveSpan;
     }
 
     static long positiveModulo(long value, long modulus) {
@@ -114,6 +134,22 @@ private:
         return best;
     }
 
+    static long chooseDirectionalEquivalent(long currentPosition, long normalizedTarget, long modulus) {
+        long currentNormalized = positiveModulo(currentPosition, modulus);
+        long currentTurnBase = currentPosition - currentNormalized;
+        long candidate = currentTurnBase + normalizedTarget;
+
+        if (currentNormalized < normalizedTarget && candidate < currentPosition) {
+            candidate += modulus;
+        } else if (currentNormalized > normalizedTarget && candidate > currentPosition) {
+            candidate -= modulus;
+        } else if (currentNormalized == normalizedTarget) {
+            candidate = currentPosition;
+        }
+
+        return candidate;
+    }
+
     unsigned int readSourceValue() {
         return ((this->Int16Buffer::getData()) & mask_) >> shift_;
     }
@@ -133,6 +169,17 @@ private:
     }
 
     long rawToBoundedSteps(unsigned int raw) const {
+        if (inputZeroCentered_) {
+            float centeredFraction = rawToCenteredFraction(raw);
+            float targetAngleDeg = (centeredFraction < 0.0f)
+                ? (minAngleDeg_ * -centeredFraction)
+                : (maxAngleDeg_ * centeredFraction);
+
+            if (reverse_) targetAngleDeg = -targetAngleDeg;
+            targetAngleDeg += trimDeg_;
+            return angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
+        }
+
         float outMin = minAngleDeg_ + trimDeg_;
         float outMax = maxAngleDeg_ + trimDeg_;
 
@@ -147,17 +194,34 @@ private:
     }
 
     long rawToContinuousSteps(unsigned int raw) const {
-        float targetAngleDeg = ((float)raw / (float)inputMaxValue_) * 360.0f;
+        float targetAngleDeg = 0.0f;
+
+        if (continuousInputIsAngle_) {
+            targetAngleDeg = inputZeroCentered_
+                ? (rawToCenteredFraction(raw) * ((float)inputMaxValue_ / 2.0f))
+                : (float)raw;
+        } else {
+            targetAngleDeg = inputZeroCentered_
+                ? (rawToCenteredFraction(raw) * 180.0f)
+                : (((float)raw / (float)inputMaxValue_) * 360.0f);
+        }
 
         if (reverse_) targetAngleDeg = -targetAngleDeg;
         targetAngleDeg += trimDeg_;
 
-        long normalizedTarget = positiveModulo(
-            angleDegToSteps(targetAngleDeg) + zeroOffsetSteps(),
-            ProfileT::kStepsPerOutputRev
-        );
+        long targetSteps = angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
+        if (!continuousUseModulo_) return targetSteps;
 
-        return chooseNearestEquivalent(
+        long normalizedTarget = positiveModulo(targetSteps, ProfileT::kStepsPerOutputRev);
+        if (continuousUseShortestPath_) {
+            return chooseNearestEquivalent(
+                stepper_.currentPosition(),
+                normalizedTarget,
+                ProfileT::kStepsPerOutputRev
+            );
+        }
+
+        return chooseDirectionalEquivalent(
             stepper_.currentPosition(),
             normalizedTarget,
             ProfileT::kStepsPerOutputRev
@@ -207,6 +271,9 @@ private:
         unsigned int inputMaxValue
     ) {
         continuous_ = continuous;
+        continuousUseModulo_ = continuous;
+        continuousUseShortestPath_ = continuous;
+        continuousInputIsAngle_ = false;
         minAngleDeg_ = minAngleDeg;
         maxAngleDeg_ = maxAngleDeg;
         trimDeg_ = trimDeg;
@@ -216,6 +283,7 @@ private:
         zeroActiveLow_ = zeroActiveLow;
         homeDirection_ = (homeDirection < 0) ? -1 : 1;
         zeroOffsetDeg_ = zeroOffsetDeg;
+        inputZeroCentered_ = false;
 
         stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm));
         stepper_.setAcceleration(accelRpmPerSecToStepsPerSec2(accelRpmPerSec));
@@ -229,13 +297,24 @@ private:
         }
     }
 
+protected:
+    void configureContinuousBehavior(bool useModulo, bool useShortestPath, bool inputIsAngle) {
+        continuous_ = true;
+        continuousUseModulo_ = useModulo;
+        continuousUseShortestPath_ = useShortestPath;
+        continuousInputIsAngle_ = inputIsAngle;
+        minAngleDeg_ = 0.0f;
+        maxAngleDeg_ = 360.0f;
+    }
+
 public:
     /*
      * Easy continuous stepper output.
      *
      * Use this for gauges that can rotate forever, such as a compass or clock.
-     * There is no maximum angle. The class automatically chooses the nearest
-     * equivalent revolution so the pointer/card crosses zero smoothly.
+     * There is no maximum angle. With modulus enabled, the class automatically
+     * chooses the nearest equivalent revolution so the pointer/card crosses
+     * zero smoothly, for example 355 -> 361 instead of 355 -> 1 backwards.
      *
      * trimDeg rotates the whole repeating scale around the dial face.
      * zeroOffsetDeg is mainly for homing systems: it moves the defined zero
@@ -255,7 +334,8 @@ public:
         bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
         int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
-        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
+        unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
+        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -280,6 +360,7 @@ public:
             zeroOffsetDeg,
             inputMaxValue
         );
+        inputZeroCentered_ = inputZeroCentered;
     }
 
     EasyStepperOutputT(
@@ -298,7 +379,8 @@ public:
         bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
         int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
-        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
+        unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
+        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -323,6 +405,7 @@ public:
             zeroOffsetDeg,
             inputMaxValue
         );
+        inputZeroCentered_ = inputZeroCentered;
     }
 
     /*
@@ -333,6 +416,9 @@ public:
      *
      * minAngleDeg and maxAngleDeg set the size of the sweep used by the gauge.
      * trimDeg shifts that whole sweep around the dial face.
+     *
+     * If inputZeroCentered is true, the middle of the incoming DCS-BIOS range
+     * maps to 0 degrees instead of the midpoint between minAngleDeg and maxAngleDeg.
      */
     EasyStepperOutputT(
         unsigned int address,                    // DCS World: memory address with the value
@@ -350,7 +436,8 @@ public:
         bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
         int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
-        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
+        unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
+        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -375,6 +462,7 @@ public:
             zeroOffsetDeg,
             inputMaxValue
         );
+        inputZeroCentered_ = inputZeroCentered;
     }
 
     EasyStepperOutputT(
@@ -395,7 +483,8 @@ public:
         bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
         int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
-        unsigned int inputMaxValue = 65535       // Maximum incoming DCS-BIOS value for this source
+        unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
+        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -420,6 +509,7 @@ public:
             zeroOffsetDeg,
             inputMaxValue
         );
+        inputZeroCentered_ = inputZeroCentered;
     }
 
     virtual void loop() override {
@@ -453,6 +543,45 @@ public:
         trimDeg_ = trimDeg;
     }
 
+    void setMinAngle(float angleDeg) {
+        minAngleDeg_ = angleDeg;
+        continuous_ = false;
+    }
+
+    void setMaxAngle(float angleDeg) {
+        maxAngleDeg_ = angleDeg;
+        continuous_ = false;
+    }
+
+    void setDirection(EasyModeDir direction) {
+        reverse_ = (direction == EasyModeDir::CCW);
+    }
+
+    void setInputMaxValue(unsigned int inputMaxValue) {
+        inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;
+    }
+
+    // Treat the incoming DCS-BIOS value as a centered range where the
+    // midpoint is the instrument's 0-degree position.
+    void setInputZeroCentered(bool inputZeroCentered) {
+        inputZeroCentered_ = inputZeroCentered;
+    }
+
+    void setInputZeroInMiddleOfRange(bool inputZeroCentered) {
+        setInputZeroCentered(inputZeroCentered);
+    }
+
+    // Enable 0..360 wrapping for continuous gauges. When enabled, movement
+    // uses the nearest equivalent target across the modulus boundary.
+    void setModulusEnabled(bool modulusEnabled) {
+        continuousUseModulo_ = modulusEnabled;
+    }
+
+    // Backward-compatible alias.
+    void setUseModulo(bool useModulo) {
+        setModulusEnabled(useModulo);
+    }
+
     void setZeroOffsetDeg(float zeroOffsetDeg) {
         zeroOffsetDeg_ = zeroOffsetDeg;
     }
@@ -483,14 +612,296 @@ public:
 };
 
 // Public naming scheme for snippet generators and no-code users:
-//   EasyStepper              -> generic default 4-wire stepper
-//   EasyStepper_28BYJ48      -> 28BYJ-48-specific defaults
+//   EasyStepper                         -> legacy flexible stepper
+//   EasyStepper_Bounded                -> generic bounded sweep stepper
+//   EasyStepper_Continuous             -> generic continuous angle stepper
+//   EasyStepper_28BYJ48                -> legacy flexible 28BYJ-48 stepper
+//   EasyStepper_28BYJ48_Bounded        -> 28BYJ-48 bounded sweep stepper
+//   EasyStepper_28BYJ48_Continuous     -> 28BYJ-48 continuous angle stepper
 using EasyStepper = EasyStepperOutputT<GenericStepperProfile>;
-using EasyStepper_28BYJ48 = EasyStepperOutputT<Stepper28Byj48Profile>;
+
+class EasyStepper_Bounded : public EasyStepperOutputT<GenericStepperProfile> {
+public:
+    EasyStepper_Bounded(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<GenericStepperProfile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        inputZeroCentered ? -180.0f : 0.0f,
+        inputZeroCentered ? 180.0f : 360.0f,
+        false,
+        0.0f,
+        GenericStepperProfile::kDefaultMaxRpm,
+        GenericStepperProfile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535,
+        inputZeroCentered
+    ) {
+    }
+
+    EasyStepper_Bounded(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<GenericStepperProfile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        inputZeroCentered ? -180.0f : 0.0f,
+        inputZeroCentered ? 180.0f : 360.0f,
+        false,
+        0.0f,
+        GenericStepperProfile::kDefaultMaxRpm,
+        GenericStepperProfile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535,
+        inputZeroCentered
+    ) {
+    }
+};
+
+class EasyStepper_Continuous : public EasyStepperOutputT<GenericStepperProfile> {
+public:
+    EasyStepper_Continuous(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<GenericStepperProfile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        GenericStepperProfile::kDefaultMaxRpm,
+        GenericStepperProfile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        360,
+        inputZeroCentered
+    ) {
+        this->configureContinuousBehavior(true, true, true);
+    }
+
+    EasyStepper_Continuous(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<GenericStepperProfile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        GenericStepperProfile::kDefaultMaxRpm,
+        GenericStepperProfile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        360,
+        inputZeroCentered
+    ) {
+        this->configureContinuousBehavior(true, true, true);
+    }
+};
+
+class EasyStepper_28BYJ48 : public EasyStepperOutputT<Stepper28Byj48Profile> {
+public:
+    EasyStepper_28BYJ48(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(address, pin1, pin2, pin3, pin4) {
+    }
+
+    EasyStepper_28BYJ48(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(address, mask, shift, pin1, pin2, pin3, pin4) {
+    }
+};
+
+class EasyStepper_28BYJ48_Bounded : public EasyStepperOutputT<Stepper28Byj48Profile> {
+public:
+    EasyStepper_28BYJ48_Bounded(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        inputZeroCentered ? -180.0f : 0.0f,
+        inputZeroCentered ? 180.0f : 360.0f,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535,
+        inputZeroCentered
+    ) {
+    }
+
+    EasyStepper_28BYJ48_Bounded(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        inputZeroCentered ? -180.0f : 0.0f,
+        inputZeroCentered ? 180.0f : 360.0f,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535,
+        inputZeroCentered
+    ) {
+    }
+};
+
+class EasyStepper_28BYJ48_Continuous : public EasyStepperOutputT<Stepper28Byj48Profile> {
+public:
+    EasyStepper_28BYJ48_Continuous(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        360,
+        inputZeroCentered
+    ) {
+        this->configureContinuousBehavior(true, true, true);
+    }
+
+    EasyStepper_28BYJ48_Continuous(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        360,
+        inputZeroCentered
+    ) {
+        this->configureContinuousBehavior(true, true, true);
+    }
+};
 
 // Backwards-compatible aliases.
 using EasyStepperOutput = EasyStepper;
-using Easy28Byj48Output = EasyStepper_28BYJ48;
+using Easy28Byj48Output = EasyStepperOutputT<Stepper28Byj48Profile>;
 
 } // namespace DcsBios
 

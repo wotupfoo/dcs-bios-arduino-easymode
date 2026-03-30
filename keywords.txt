@@ -2,8 +2,12 @@ DcsBiosEasyMode	KEYWORD1
 DcsBios	KEYWORD1
 EasyServo	KEYWORD1
 EasyStepper	KEYWORD1
+EasyStepper_Bounded	KEYWORD1
+EasyStepper_Continuous	KEYWORD1
 EasyServo_SG90	KEYWORD1
 EasyStepper_28BYJ48	KEYWORD1
+EasyStepper_28BYJ48_Bounded	KEYWORD1
+EasyStepper_28BYJ48_Continuous	KEYWORD1
 EasyServoOutput	KEYWORD1
 EasySg90ServoOutput	KEYWORD1
 EasyStepperOutput	KEYWORD1

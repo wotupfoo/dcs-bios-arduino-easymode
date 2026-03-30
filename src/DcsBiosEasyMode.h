@@ -12,6 +12,7 @@
 #include <AccelStepper.h>
 #include <DcsBios.h>
 
+#include "internal/DcsBiosEasyCommon.h"
 #include "internal/DcsBiosEasyServos.h"
 #include "internal/DcsBiosEasySteppers.h"
 
