@@ -7,27 +7,9 @@ set "REMOVE_DIST=0"
 if /I "%~1"=="--all" set "REMOVE_DIST=1"
 
 echo Cleaning repo-local temporary files...
-
-for %%P in (
-    ".tmp-*"
-    ".tmp*"
-) do (
-    for /D %%D in (%%~P) do (
-        if exist "%%~fD" (
-            echo Removing directory %%~nxD
-            rmdir /S /Q "%%~fD"
-        )
-    )
-
-    for %%F in (%%~P) do (
-        if exist "%%~fF" (
-            if not exist "%%~fF\" (
-                echo Removing file %%~nxF
-                del /F /Q "%%~fF"
-            )
-        )
-    )
-)
+set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+"%POWERSHELL_EXE%" -NoProfile -Command ^
+  "Get-ChildItem -Force -LiteralPath '.' | Where-Object { $_.Name -like '.tmp*' } | ForEach-Object { if ($_.PSIsContainer) { Write-Host ('Removing directory ' + $_.Name); Remove-Item -LiteralPath $_.FullName -Recurse -Force } else { Write-Host ('Removing file ' + $_.Name); Remove-Item -LiteralPath $_.FullName -Force } }"
 
 if "%REMOVE_DIST%"=="1" (
     if exist "dist" (
