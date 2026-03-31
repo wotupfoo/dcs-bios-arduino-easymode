@@ -1,0 +1,9 @@
+{
+  "name": "dcs-bios-easy-mode-release-tools",
+  "private": true,
+  "scripts": {
+    "release:zip": "node scripts/package-arduino-release.mjs",
+    "release:zip:clean": "node scripts/package-arduino-release.mjs --clean",
+    "release:install": "node scripts/package-arduino-release.mjs --install"
+  }
+}

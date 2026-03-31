@@ -11,9 +11,7 @@
                 "G:/My Drive/EmbeddedElectronics/Arduino/libraries/**"
             ],
             "defines": [
-                "_DEBUG",
-                "UNICODE",
-                "_UNICODE"
+                "ARDUINO=10607"
             ],
             "windowsSdkVersion": "10.0.19041.0",
             "cStandard": "c17",

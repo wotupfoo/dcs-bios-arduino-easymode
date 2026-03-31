@@ -1,0 +1,53 @@
+name: Package Arduino Release
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  package-arduino-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Read library metadata
+        id: metadata
+        shell: bash
+        run: |
+          LIB_NAME="$(grep '^name=' library.properties | cut -d= -f2-)"
+          LIB_VERSION="$(grep '^version=' library.properties | cut -d= -f2-)"
+          SAFE_NAME="$(echo "$LIB_NAME" | tr ' ' '-')"
+          ARCHIVE_NAME="${SAFE_NAME}-${LIB_VERSION}-arduino.zip"
+
+          echo "lib_name=$LIB_NAME" >> "$GITHUB_OUTPUT"
+          echo "lib_version=$LIB_VERSION" >> "$GITHUB_OUTPUT"
+          echo "safe_name=$SAFE_NAME" >> "$GITHUB_OUTPUT"
+          echo "archive_name=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Create Arduino user package
+        run: npm run release:zip
+
+      - name: Upload packaged zip as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.metadata.outputs.safe_name }}-arduino-package
+          path: dist/${{ steps.metadata.outputs.archive_name }}
+          if-no-files-found: error
+
+      - name: Attach packaged zip to GitHub release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ steps.metadata.outputs.archive_name }}
