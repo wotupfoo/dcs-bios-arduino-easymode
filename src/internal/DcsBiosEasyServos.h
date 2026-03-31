@@ -3,6 +3,12 @@
 
 #include <math.h>
 
+#ifdef ARDUINO_ARCH_ESP32
+#include <ESP32Servo.h>
+#else
+#include <Servo.h>
+#endif
+
 namespace DcsBios {
 
 template<int DEFAULT_MIN_PULSE_US,

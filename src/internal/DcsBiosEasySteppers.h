@@ -214,7 +214,7 @@ private:
         return angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
     }
 
-    long rawToContinuousSteps(unsigned int raw) const {
+    long rawToContinuousSteps(unsigned int raw) {
         float targetAngleDeg = 0.0f;
 
         if (continuousInputIsAngle_) {
@@ -696,15 +696,15 @@ public:
         stepper_.setCurrentPosition(angleDegToSteps(angleDeg));
     }
 
-    long currentPositionSteps() const {
+    long currentPositionSteps() {
         return stepper_.currentPosition();
     }
 
-    long targetPositionSteps() const {
+    long targetPositionSteps() {
         return stepper_.targetPosition();
     }
 
-    long distanceToGoSteps() const {
+    long distanceToGoSteps() {
         return stepper_.distanceToGo();
     }
 };
