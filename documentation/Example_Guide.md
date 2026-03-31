@@ -38,7 +38,7 @@ This library sits on top of DCS-BIOS and tries to make the code read more like r
 
 The DCS-BIOS Easy Mode library used in this guide comes from:
 
-`https://github.com/wotupfoo/dcs-bios-arduino-easymode`
+`https://github.com/WotUpFoo/dcs-bios-arduino-easymode`
 
 Instead of thinking in low-level pulse widths or motor internals, the idea is to think in terms such as:
 
@@ -131,7 +131,7 @@ Photo placeholder:
 
 Install the DCS-BIOS Easy Mode version of Bort from:
 
-`https://github.com/wotupfoo/Bort-EasyMode`
+`https://github.com/WotUpFoo/Bort-EasyMode`
 
 Then run Bort-EasyMode.
 
@@ -155,7 +155,7 @@ You need the Arduino side of DCS-BIOS and the Easy Mode library available inside
 
 The Easy Mode library for this guide comes from:
 
-`https://github.com/wotupfoo/dcs-bios-arduino-easymode`
+`https://github.com/WotUpFoo/dcs-bios-arduino-easymode`
 
 For a beginner, the easiest mental model is:
 

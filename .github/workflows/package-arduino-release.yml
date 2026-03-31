@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Read library metadata
         id: metadata
@@ -32,7 +32,7 @@ jobs:
           echo "archive_name=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 18
 
@@ -40,7 +40,7 @@ jobs:
         run: npm run release:zip
 
       - name: Upload packaged zip as workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ steps.metadata.outputs.safe_name }}-arduino-package
           path: dist/${{ steps.metadata.outputs.archive_name }}
