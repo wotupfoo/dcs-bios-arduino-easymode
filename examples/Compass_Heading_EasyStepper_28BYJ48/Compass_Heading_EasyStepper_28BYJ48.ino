@@ -1,5 +1,5 @@
 #define DCSBIOS_DEFAULT_SERIAL
-#include "DcsBiosEasyMode.h"
+#include <DcsBiosEasyMode.h>
 
 /*
  * 28BYJ-48 continuous heading gauge example using the CommonData (all aircraft)

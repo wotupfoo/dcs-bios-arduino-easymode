@@ -1,5 +1,5 @@
 #define DCSBIOS_DEFAULT_SERIAL
-#include "DcsBiosEasyMode.h"
+#include <DcsBiosEasyMode.h>
 
 /*
  * Generic bounded altitude gauge example using the CommonData (all aircraft)

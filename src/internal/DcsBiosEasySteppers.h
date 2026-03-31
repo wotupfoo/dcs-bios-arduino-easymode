@@ -47,6 +47,11 @@ template<typename ProfileT>
 class EasyStepperOutputT : public Int16Buffer {
 public:
     static constexpr uint8_t PIN_NONE = 0xFF;
+    typedef void (*FaultCallback)(
+        unsigned int address,
+        unsigned long serviceGapUs,
+        unsigned long allowedGapUs
+    );
 
 private:
     enum HomeState {
@@ -57,6 +62,13 @@ private:
     };
 
     AccelStepper stepper_;
+    unsigned int address_;
+    float maxRpm_;
+    FaultCallback faultCallback_;
+    bool timingFaultLatched_;
+    float faultToleranceMultiplier_;
+    unsigned long lastServiceUs_;
+    unsigned long lastExpectedStepIntervalUs_;
 
     unsigned int mask_;
     unsigned char shift_;
@@ -83,6 +95,15 @@ private:
 
     static float accelRpmPerSecToStepsPerSec2(float accelRpmPerSec) {
         return (accelRpmPerSec * (float)ProfileT::kStepsPerOutputRev) / 60.0f;
+    }
+
+    static unsigned long stepsPerSecondToIntervalUs(float stepsPerSecond) {
+        float magnitude = fabsf(stepsPerSecond);
+        if (magnitude < 0.001f) return 0UL;
+
+        float intervalUs = 1000000.0f / magnitude;
+        if (intervalUs <= 1.0f) return 1UL;
+        return (unsigned long)lroundf(intervalUs);
     }
 
     static long roundToLong(float value) {
@@ -256,6 +277,45 @@ private:
         }
     }
 
+    unsigned long allowedServiceGapUs() const {
+        if (lastExpectedStepIntervalUs_ == 0UL) return 0UL;
+
+        float allowedGapUs = (float)lastExpectedStepIntervalUs_ * faultToleranceMultiplier_;
+        if (allowedGapUs <= 1.0f) return 1UL;
+        return (unsigned long)lroundf(allowedGapUs);
+    }
+
+    void checkTimingFault(unsigned long nowUs) {
+        if (timingFaultLatched_) return;
+        if (lastServiceUs_ == 0UL) return;
+        if (lastExpectedStepIntervalUs_ == 0UL) return;
+
+        unsigned long allowedGapUs = allowedServiceGapUs();
+        unsigned long serviceGapUs = nowUs - lastServiceUs_;
+        if (allowedGapUs == 0UL || serviceGapUs <= allowedGapUs) return;
+
+        timingFaultLatched_ = true;
+        if (faultCallback_ != nullptr) {
+            faultCallback_(address_, serviceGapUs, allowedGapUs);
+        }
+    }
+
+    void updateExpectedStepIntervalUs() {
+        if (homeState_ != HOME_DONE && homeState_ != HOME_NONE) {
+            lastExpectedStepIntervalUs_ = stepsPerSecondToIntervalUs(
+                rpmToStepsPerSecond(ProfileT::kDefaultHomingRpm)
+            );
+            return;
+        }
+
+        if (stepper_.distanceToGo() == 0L) {
+            lastExpectedStepIntervalUs_ = 0UL;
+            return;
+        }
+
+        lastExpectedStepIntervalUs_ = stepsPerSecondToIntervalUs(stepper_.speed());
+    }
+
     void commonInit(
         bool continuous,
         float minAngleDeg,
@@ -284,8 +344,14 @@ private:
         homeDirection_ = (homeDirection < 0) ? -1 : 1;
         zeroOffsetDeg_ = zeroOffsetDeg;
         inputZeroCentered_ = false;
+        maxRpm_ = maxRpm;
+        faultCallback_ = nullptr;
+        timingFaultLatched_ = false;
+        faultToleranceMultiplier_ = 1.5f;
+        lastServiceUs_ = micros();
+        lastExpectedStepIntervalUs_ = 0UL;
 
-        stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm));
+        stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm_));
         stepper_.setAcceleration(accelRpmPerSecToStepsPerSec2(accelRpmPerSec));
         stepper_.setCurrentPosition(0);
 
@@ -344,6 +410,7 @@ public:
             ProfileT::kSwapMiddlePins ? pin2 : pin3,
             pin4
         ),
+        address_(address),
         mask_(0xFFFF),
         shift_(0) {
         commonInit(
@@ -389,6 +456,7 @@ public:
             ProfileT::kSwapMiddlePins ? pin2 : pin3,
             pin4
         ),
+        address_(address),
         mask_(mask),
         shift_(shift) {
         commonInit(
@@ -446,6 +514,7 @@ public:
             ProfileT::kSwapMiddlePins ? pin2 : pin3,
             pin4
         ),
+        address_(address),
         mask_(0xFFFF),
         shift_(0) {
         commonInit(
@@ -493,6 +562,7 @@ public:
             ProfileT::kSwapMiddlePins ? pin2 : pin3,
             pin4
         ),
+        address_(address),
         mask_(mask),
         shift_(shift) {
         commonInit(
@@ -513,8 +583,13 @@ public:
     }
 
     virtual void loop() override {
+        unsigned long nowUs = micros();
+        checkTimingFault(nowUs);
+        lastServiceUs_ = nowUs;
+
         if (homeState_ != HOME_DONE) {
             runHoming();
+            updateExpectedStepIntervalUs();
             return;
         }
 
@@ -528,6 +603,7 @@ public:
         }
 
         stepper_.run();
+        updateExpectedStepIntervalUs();
     }
 
     void startHoming() {
@@ -586,8 +662,30 @@ public:
         zeroOffsetDeg_ = zeroOffsetDeg;
     }
 
+    void setFaultCallback(FaultCallback faultCallback) {
+        faultCallback_ = faultCallback;
+    }
+
+    void clearTimingFault() {
+        timingFaultLatched_ = false;
+        lastServiceUs_ = micros();
+    }
+
+    bool hasTimingFault() const {
+        return timingFaultLatched_;
+    }
+
+    void setFaultToleranceMultiplier(float faultToleranceMultiplier) {
+        faultToleranceMultiplier_ = (faultToleranceMultiplier < 1.0f) ? 1.0f : faultToleranceMultiplier;
+    }
+
     void setMaxRpm(float maxRpm) {
-        stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm));
+        maxRpm_ = maxRpm;
+        stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm_));
+    }
+
+    float getMaxRpm() const {
+        return maxRpm_;
     }
 
     void setAccelerationRpmPerSec(float accelRpmPerSec) {

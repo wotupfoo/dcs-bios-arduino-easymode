@@ -1,5 +1,5 @@
 #define DCSBIOS_DEFAULT_SERIAL
-#include "DcsBiosEasyMode.h"
+#include <DcsBiosEasyMode.h>
 
 /*
  * 28BYJ-48 stepper centered-zero bank angle example using the free P-51D plane.

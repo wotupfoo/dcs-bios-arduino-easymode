@@ -1,5 +1,5 @@
 #define DCSBIOS_DEFAULT_SERIAL
-#include "DcsBiosEasyMode.h"
+#include <DcsBiosEasyMode.h>
 
 /*
  * Blank starting point for building a DCS-BIOS Easy Mode sketch.
