@@ -1,2 +1,5 @@
 directories:
   user: "%USERPROFILE%\\Documents\\Arduino"
+
+# Optional default board for build-all-examples.bat:
+# fqbn: "arduino:avr:uno"

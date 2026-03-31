@@ -38,3 +38,8 @@ If you want the upstream project details, background, and broader DCS-BIOS infor
 For Easy Mode usage, examples, and beginner-facing guidance, start with the documentation in this repository.
 
 For upstream DCS-BIOS support and broader project discussion, the DCS-Flightpanels community resources are still the right place to look.
+
+For repository maintenance notes, including the Arduino CLI helper batch files
+and config files used to build the examples, see:
+
+[DEVELOPMENT.md](DEVELOPMENT.md)

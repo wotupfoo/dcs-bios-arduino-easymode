@@ -90,12 +90,20 @@ node_modules/
 *.log
 
 #########################################################
+# Arduino CLI building tools
+#########################################################
+arduino-cli.yaml
+#arduino-cli.yaml.example #this is in the repo
+
+#########################################################
 # Submodule note
 #########################################################
 # DO NOT ignore submodule folders themselves
 # Git tracks them as special entries
 #########################################################
 
-# Blocking doc upload for now
+#########################################################
+# Blocking non markdown documentation upload for now
+#########################################################
 *.docx
 *.pdf
