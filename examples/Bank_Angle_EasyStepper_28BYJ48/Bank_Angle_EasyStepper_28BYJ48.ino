@@ -40,6 +40,11 @@ void setup() {
     bankAngleNeedle.setMinAngle(-45.0f);
     bankAngleNeedle.setMaxAngle(45.0f);
 
+    // NOTE: Stepper homing is NOT automatic; it only starts when you call home() explicitly.
+    // If you do not have a zero switch, comment out or remove the home() call.
+    // If you have a zero switch on pin 12, home() will seek it on startup.
+    bankAngleNeedle.home();
+
     DcsBios::setup();
 }
 

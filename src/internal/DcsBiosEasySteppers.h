@@ -997,9 +997,366 @@ public:
     }
 };
 
+// Manual stepper class that doesn't subscribe to DCS-BIOS, allows manual position setting
+template<typename ProfileT>
+class EasyStepper_Manual {
+public:
+    static constexpr uint8_t PIN_NONE = 0xFF;
+    typedef void (*FaultCallback)(
+        unsigned int address,
+        unsigned long serviceGapUs,
+        unsigned long allowedGapUs
+    );
+
+private:
+    enum HomeState {
+        HOME_NONE,
+        HOME_SEEK_SWITCH,
+        HOME_RELEASE_SWITCH,
+        HOME_DONE
+    };
+
+    AccelStepper stepper_;
+    float maxRpm_;
+    FaultCallback faultCallback_;
+    bool timingFaultLatched_;
+    float faultToleranceMultiplier_;
+    unsigned long lastServiceUs_;
+    unsigned long lastExpectedStepIntervalUs_;
+
+    bool continuous_;
+    bool continuousUseModulo_;
+    bool continuousUseShortestPath_;
+    bool continuousInputIsAngle_;
+    float minAngleDeg_;
+    float maxAngleDeg_;
+    float trimDeg_;
+    bool reverse_;
+    unsigned int inputMaxValue_;
+    bool inputZeroCentered_;
+
+    uint8_t zeroPin_;
+    bool zeroActiveLow_;
+    int8_t homeDirection_;
+    float zeroOffsetDeg_;
+    HomeState homeState_;
+
+    static float rpmToStepsPerSecond(float rpm) {
+        return (rpm * (float)ProfileT::kStepsPerOutputRev) / 60.0f;
+    }
+
+    static float accelRpmPerSecToStepsPerSec2(float accelRpmPerSec) {
+        return (accelRpmPerSec * (float)ProfileT::kStepsPerOutputRev) / 60.0f;
+    }
+
+    static unsigned long stepsPerSecondToIntervalUs(float stepsPerSecond) {
+        float magnitude = fabsf(stepsPerSecond);
+        if (magnitude < 0.001f) return 0UL;
+
+        float intervalUs = 1000000.0f / magnitude;
+        if (intervalUs <= 1.0f) return 1UL;
+        return (unsigned long)lroundf(intervalUs);
+    }
+
+    static long roundToLong(float value) {
+        return (long)lroundf(value);
+    }
+
+    float rawToCenteredFraction(unsigned int raw) const {
+        unsigned int midLower = inputMaxValue_ / 2U;
+        unsigned int midUpper = (inputMaxValue_ + 1U) / 2U;
+
+        if (raw <= midLower) {
+            if (midLower == 0U) return 0.0f;
+            return ((float)raw / (float)midLower) - 1.0f;
+        }
+
+        if (raw < midUpper) return 0.0f;
+
+        unsigned int positiveSpan = inputMaxValue_ - midUpper;
+        if (positiveSpan == 0U) return 0.0f;
+        return (float)(raw - midUpper) / (float)positiveSpan;
+    }
+
+    static long positiveModulo(long value, long modulus) {
+        long out = value % modulus;
+        if (out < 0) out += modulus;
+        return out;
+    }
+
+    static long chooseNearestEquivalent(long currentPosition, long normalizedTarget, long modulus) {
+        long turn = (long)lround((double)(currentPosition - normalizedTarget) / (double)modulus);
+        long candidate = normalizedTarget + (turn * modulus);
+
+        long best = candidate;
+        long bestDistance = labs(candidate - currentPosition);
+
+        long candidateMinus = candidate - modulus;
+        long distanceMinus = labs(candidateMinus - currentPosition);
+        if (distanceMinus < bestDistance) {
+            best = candidateMinus;
+            bestDistance = distanceMinus;
+        }
+
+        long candidatePlus = candidate + modulus;
+        long distancePlus = labs(candidatePlus - currentPosition);
+        if (distancePlus < bestDistance) {
+            best = candidatePlus;
+        }
+
+        return best;
+    }
+
+    static long chooseDirectionalEquivalent(long currentPosition, long normalizedTarget, long modulus) {
+        long currentNormalized = positiveModulo(currentPosition, modulus);
+        long currentTurnBase = currentPosition - currentNormalized;
+        long candidate = currentTurnBase + normalizedTarget;
+
+        if (currentNormalized < normalizedTarget && candidate < currentPosition) {
+            candidate += modulus;
+        } else if (currentNormalized > normalizedTarget && candidate > currentPosition) {
+            candidate -= modulus;
+        } else if (currentNormalized == normalizedTarget) {
+            candidate = currentPosition;
+        }
+
+        return candidate;
+    }
+
+    bool isZeroActive() const {
+        if (zeroPin_ == PIN_NONE) return false;
+        int value = digitalRead(zeroPin_);
+        return zeroActiveLow_ ? (value == LOW) : (value == HIGH);
+    }
+
+    long angleDegToSteps(float angleDeg) const {
+        return roundToLong((angleDeg / 360.0f) * (float)ProfileT::kStepsPerOutputRev);
+    }
+
+    long zeroOffsetSteps() const {
+        return angleDegToSteps(zeroOffsetDeg_);
+    }
+
+    long rawToBoundedSteps(unsigned int raw) const {
+        if (inputZeroCentered_) {
+            float centeredFraction = rawToCenteredFraction(raw);
+            float targetAngleDeg = (centeredFraction < 0.0f)
+                ? (minAngleDeg_ * -centeredFraction)
+                : (maxAngleDeg_ * centeredFraction);
+
+            if (reverse_) targetAngleDeg = -targetAngleDeg;
+            targetAngleDeg += trimDeg_;
+            return angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
+        } else {
+            float targetAngleDeg = minAngleDeg_ + ((maxAngleDeg_ - minAngleDeg_) * ((float)raw / (float)inputMaxValue_));
+            if (reverse_) targetAngleDeg = -targetAngleDeg;
+            targetAngleDeg += trimDeg_;
+            return angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
+        }
+    }
+
+    long rawToContinuousSteps(unsigned int raw) const {
+        float targetAngleDeg = ((float)raw / (float)inputMaxValue_) * 360.0f;
+        if (reverse_) targetAngleDeg = -targetAngleDeg;
+        targetAngleDeg += trimDeg_;
+        return angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
+    }
+
+    long rawToSteps(unsigned int raw) const {
+        if (continuous_) {
+            return rawToContinuousSteps(raw);
+        } else {
+            return rawToBoundedSteps(raw);
+        }
+    }
+
+    void commonInit(
+        bool continuous,
+        float minAngleDeg,
+        float maxAngleDeg,
+        bool reverse,
+        float trimDeg,
+        float maxRpm,
+        float accelRpmPerSec,
+        uint8_t zeroPin,
+        bool zeroActiveLow,
+        int8_t homeDirection,
+        float zeroOffsetDeg,
+        unsigned int inputMaxValue
+    ) {
+        continuous_ = continuous;
+        minAngleDeg_ = minAngleDeg;
+        maxAngleDeg_ = maxAngleDeg;
+        trimDeg_ = trimDeg;
+        reverse_ = reverse;
+        inputMaxValue_ = inputMaxValue;
+        inputZeroCentered_ = false; // For manual, assume not centered unless specified
+
+        zeroPin_ = zeroPin;
+        zeroActiveLow_ = zeroActiveLow;
+        homeDirection_ = homeDirection;
+        zeroOffsetDeg_ = zeroOffsetDeg;
+        homeState_ = HOME_NONE;
+
+        maxRpm_ = maxRpm;
+        stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm_));
+        stepper_.setAcceleration(accelRpmPerSecToStepsPerSec2(accelRpmPerSec));
+
+        faultCallback_ = nullptr;
+        timingFaultLatched_ = false;
+        faultToleranceMultiplier_ = 1.0f;
+        lastServiceUs_ = 0UL;
+        lastExpectedStepIntervalUs_ = 0UL;
+
+        configureContinuousBehavior(false, false, false);
+    }
+
+    void configureContinuousBehavior(bool useModulo, bool useShortestPath, bool inputIsAngle) {
+        continuousUseModulo_ = useModulo;
+        continuousUseShortestPath_ = useShortestPath;
+        continuousInputIsAngle_ = inputIsAngle;
+    }
+
+    void serviceStepper() {
+        unsigned long nowUs = micros();
+        unsigned long intervalUs = nowUs - lastServiceUs_;
+        lastServiceUs_ = nowUs;
+
+        stepper_.run();
+
+        if (faultCallback_ != nullptr && !timingFaultLatched_) {
+            unsigned long expectedIntervalUs = stepsPerSecondToIntervalUs(stepper_.speed());
+            if (expectedIntervalUs > 0UL) {
+                lastExpectedStepIntervalUs_ = expectedIntervalUs;
+                unsigned long allowedGapUs = (unsigned long)lroundf((float)expectedIntervalUs * faultToleranceMultiplier_);
+                if (intervalUs > allowedGapUs) {
+                    timingFaultLatched_ = true;
+                    faultCallback_(0, intervalUs, allowedGapUs); // address 0 for manual
+                }
+            }
+        }
+    }
+
+    void serviceHoming() {
+        if (homeState_ == HOME_NONE) return;
+
+        if (homeState_ == HOME_SEEK_SWITCH) {
+            if (isZeroActive()) {
+                homeState_ = HOME_RELEASE_SWITCH;
+                stepper_.setSpeed(-stepper_.speed()); // reverse direction
+            } else {
+                stepper_.runSpeed();
+            }
+        } else if (homeState_ == HOME_RELEASE_SWITCH) {
+            if (!isZeroActive()) {
+                stepper_.stop();
+                stepper_.setCurrentPosition(zeroOffsetSteps());
+                homeState_ = HOME_DONE;
+            } else {
+                stepper_.runSpeed();
+            }
+        }
+    }
+
+public:
+    EasyStepper_Manual(
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = PIN_NONE,
+        bool inputZeroCentered = false,
+        unsigned int inputMaxValue = 65535
+    ) : stepper_(
+        ProfileT::kInterface,
+        pin1,
+        ProfileT::kSwapMiddlePins ? pin3 : pin2,
+        ProfileT::kSwapMiddlePins ? pin2 : pin3,
+        pin4
+    ) {
+        commonInit(
+            false, // bounded
+            inputZeroCentered ? -180.0f : 0.0f,
+            inputZeroCentered ? 180.0f : 360.0f,
+            false,
+            0.0f,
+            ProfileT::kDefaultMaxRpm,
+            ProfileT::kDefaultAccelRpmPerSec,
+            zeroPin,
+            true,
+            -1,
+            0.0f,
+            inputMaxValue
+        );
+        inputZeroCentered_ = inputZeroCentered;
+    }
+
+    void setPosition(unsigned int value) {
+        if (homeState_ != HOME_DONE) return; // only set position after homing
+
+        long targetSteps = rawToSteps(value);
+        if (continuous_ && continuousUseShortestPath_) {
+            long modulus = angleDegToSteps(360.0f);
+            targetSteps = chooseNearestEquivalent(stepper_.currentPosition(), targetSteps, modulus);
+        }
+        stepper_.moveTo(targetSteps);
+    }
+
+    void loop() {
+        serviceHoming();
+        serviceStepper();
+    }
+
+    void setMaxRpm(float maxRpm) {
+        maxRpm_ = maxRpm;
+        stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm_));
+    }
+
+    void setAccelRpmPerSec(float accelRpmPerSec) {
+        stepper_.setAcceleration(accelRpmPerSecToStepsPerSec2(accelRpmPerSec));
+    }
+
+    void setReverse(bool reverse) {
+        reverse_ = reverse;
+    }
+
+    void setTrimDeg(float trimDeg) {
+        trimDeg_ = trimDeg;
+    }
+
+    void setFaultCallback(FaultCallback callback, float faultToleranceMultiplier = 1.0f) {
+        faultCallback_ = callback;
+        faultToleranceMultiplier_ = faultToleranceMultiplier;
+        timingFaultLatched_ = false;
+    }
+
+    void home() {
+        if (zeroPin_ == PIN_NONE) return;
+        stepper_.setSpeed((float)homeDirection_ * rpmToStepsPerSecond(ProfileT::kDefaultHomingRpm));
+        homeState_ = HOME_SEEK_SWITCH;
+    }
+
+    bool isHomed() const {
+        return homeState_ == HOME_DONE;
+    }
+
+    void configureContinuousBehavior(bool useModulo, bool useShortestPath, bool inputIsAngle) {
+        continuous_ = true;
+        configureContinuousBehavior(useModulo, useShortestPath, inputIsAngle);
+    }
+
+    void configureBoundedBehavior(float minAngleDeg, float maxAngleDeg) {
+        continuous_ = false;
+        minAngleDeg_ = minAngleDeg;
+        maxAngleDeg_ = maxAngleDeg;
+    }
+};
+
 // Backwards-compatible aliases.
 using EasyStepperOutput = EasyStepper;
 using Easy28Byj48Output = EasyStepperOutputT<Stepper28Byj48Profile>;
+using EasyStepper_Manual_Generic = EasyStepper_Manual<GenericStepperProfile>;
+using EasyStepper_Manual_28BYJ48 = EasyStepper_Manual<Stepper28Byj48Profile>;
 
 } // namespace DcsBios
 

@@ -36,6 +36,10 @@ DcsBios::EasyStepper_28BYJ48_Continuous compassCard(
 void setup() {
     // compassCard.setModulusEnabled(false); // Use absolute degrees instead of wrapping at 360
 
+    // NOTE: Stepper homing is NOT automatic. To home on startup if you have a
+    // zero switch on pin 12, uncomment the line below:
+    // compassCard.home();
+
     DcsBios::setup();
 }
 

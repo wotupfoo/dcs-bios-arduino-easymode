@@ -8,7 +8,8 @@
                 "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/libraries/**",
                 "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/system/**",
                 "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/variants/generic_stm32f103c/**",
-                "G:/My Drive/EmbeddedElectronics/Arduino/libraries/**"
+                "G:/My Drive/EmbeddedElectronics/Arduino/libraries/**",
+                "C:/Users/${env:USERNAME}/AppData/Local/Arduino15/libraries"
             ],
             "defines": [
                 "ARDUINO=10607"

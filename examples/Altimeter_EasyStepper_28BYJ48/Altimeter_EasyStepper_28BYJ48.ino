@@ -63,6 +63,10 @@ void setup() {
     // This altimeter example needs many turns, not the default one-turn sweep.
     altimeterNeedle.setMaxAngle(235926.0f);
 
+    // NOTE: Stepper homing is NOT automatic. To home on startup if you have a
+    // zero switch on pin 12, uncomment the line below:
+    // altimeterNeedle.home();
+
     DcsBios::setup();
 }
 
