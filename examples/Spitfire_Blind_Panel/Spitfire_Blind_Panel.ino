@@ -1,6 +1,13 @@
 #define DCSBIOS_DEFAULT_SERIAL
 #include <DcsBiosEasyMode.h>
 
+/* The pin configuration is in boardconfig.h.
+ * Open that file and change the pinnouts as needed.
+ * Arduino Mega2560 and Due are there as examples, but you can modify for any 
+ * board by following the pin availability notes and examples in that file.
+ */
+#include "boardconfig.h"
+
 /******************************************************************************
  * Spitfire Blind Panel telemetry output.
  ******************************************************************************
@@ -15,50 +22,6 @@
  ******************************************************************************
  */
 
-/*
- * Mega2560 Pin Availability:
- * - Digital Pins: 0-53
- * - Analog Pins: A0-A15 (usable as digital pins 54-69 if needed)
- * - Notes: Pins 0/1 are Serial RX/TX; avoid for stepper/servos. Pins 2-13 have PWM. Pins 50-53 are SPI.
- * - Current assignments: See code below.
- */
-// Pin assignments (ordered by gauge position on panel)
-// Air Speed Indicated (ASI)
-#define AIRSPEED_STEPPER_PIN1     2   // Airspeed stepper pin 1
-#define AIRSPEED_STEPPER_PIN2     3   // Airspeed stepper pin 2
-#define AIRSPEED_STEPPER_PIN3     4   // Airspeed stepper pin 3
-#define AIRSPEED_STEPPER_PIN4     5   // Airspeed stepper pin 4
-#define AIRSPEED_ZERO_PIN         20  // Airspeed zero detect (optional)
-
-// Artificial Horizon
-#define AHORIZON_BANK_SERVO_PIN   6   // Artificial horizon bank servo (PWM)
-#define AHORIZON_PITCH_SERVO_PIN  7   // Artificial horizon pitch servo (PWM)
-
-// Rate of Climb Indicator
-#define ROCLIMB_STEPPER_PIN1      16  // Rate of Climb stepper pin 1
-#define ROCLIMB_STEPPER_PIN2      17  // Rate of Climb stepper pin 2
-#define ROCLIMB_STEPPER_PIN3      18  // Rate of Climb stepper pin 3
-#define ROCLIMB_STEPPER_PIN4      19  // Rate of Climb stepper pin 4
-#define ROCLIMB_ZERO_PIN          21  // Rate of Climb zero
-
-// Altimeter
-#define ALTIMETER_STEPPER_PIN1    8   // Altimeter stepper pin 1
-#define ALTIMETER_STEPPER_PIN2    9   // Altimeter stepper pin 2
-#define ALTIMETER_STEPPER_PIN3    10  // Altimeter stepper pin 3
-#define ALTIMETER_STEPPER_PIN4    11  // Altimeter stepper pin 4
-#define ALTIMETER_ZERO_PIN        21  // Altimeter zero detect (optional)
-
-// Gyroscopic Directional Indicator (DI)
-#define DI_STEPPER_PIN1           12  // DI stepper pin 1
-#define DI_STEPPER_PIN2           13  // DI stepper pin 2
-#define DI_STEPPER_PIN3           14  // DI stepper pin 3
-#define DI_STEPPER_PIN4           15  // DI stepper pin 4
-#define DI_ZERO_PIN               22  // DI zero detect (optional)
-
-// Side Slip and Turn Gauge
-#define SIDESLIP_SERVO_PIN        44  // Sideslip gauge servo (PWM)
-#define TURN_SERVO_PIN            45  // Turn gauge servo (PWM)
-
 // *****************************************************************************
 // AIR SPEED INDICATOR (ASI)
 // *****************************************************************************
@@ -69,6 +32,7 @@ DcsBios::EasyStepper_28BYJ48 airspeedgauge(
     AIRSPEED_STEPPER_PIN3,        // Arduino pin connected to the stepper driver input pin 3
     AIRSPEED_STEPPER_PIN4,        // Arduino pin connected to the stepper driver input pin 4
     AIRSPEED_ZERO_PIN,            // Zero angle detection input pin
+    false                         // inputZeroCentered: false because 0 knots is at 0 degrees and max speed is at 720 degrees
 );
 
 // ******************************************************************************
@@ -102,7 +66,8 @@ DcsBios::EasyStepper_Manual_28BYJ48 rateofclimbstepper(
     ROCLIMB_STEPPER_PIN2,      // Arduino pin connected to the stepper driver input pin 2
     ROCLIMB_STEPPER_PIN3,      // Arduino pin connected to the stepper driver input pin 3
     ROCLIMB_STEPPER_PIN4,      // Arduino pin connected to the stepper driver input pin 4
-    ROCLIMB_ZERO_PIN           // Zero angle detection input pin
+    ROCLIMB_ZERO_PIN,          // Zero angle detection input pin
+    true                       // inputZeroCentered: true because center is 0 ft/min
 );
 
 // ******************************************************************************
@@ -154,7 +119,9 @@ DcsBios::EasyStepper_Manual_28BYJ48 altimeter3NeedleStepper(
     ALTIMETER_STEPPER_PIN1,    // Arduino pin connected to the stepper driver input pin 1
     ALTIMETER_STEPPER_PIN2,    // Arduino pin connected to the stepper driver input pin 2
     ALTIMETER_STEPPER_PIN3,    // Arduino pin connected to the stepper driver input pin 3
-    ALTIMETER_STEPPER_PIN4     // Arduino pin connected to the stepper driver input pin 4
+    ALTIMETER_STEPPER_PIN4,    // Arduino pin connected to the stepper driver input pin 4
+    ALTIMETER_ZERO_PIN,        // Zero angle detection input pin
+    false                      // inputZeroCentered: false because 0 ft is at 0 degrees
 );
 // *******************************************************************************
 // GYROSCOPIC DIRECTIONAL INDICATOR (DI) with adjustment rotary encoder
@@ -163,7 +130,9 @@ DcsBios::EasyStepper_Manual_28BYJ48 DIStepper(
     DI_STEPPER_PIN1,          // Arduino pin connected to the stepper driver input pin 1
     DI_STEPPER_PIN2,          // Arduino pin connected to the stepper driver input pin 2
     DI_STEPPER_PIN3,          // Arduino pin connected to the stepper driver input pin 3
-    DI_STEPPER_PIN4           // Arduino pin connected to the stepper driver input pin 4
+    DI_STEPPER_PIN4,          // Arduino pin connected to the stepper driver input pin 4
+    DI_ZERO_PIN,              // Zero angle detection input pin
+    false                     // inputZeroCentered: false because 0 degrees is at 0 input
 );
 
 // *******************************************************************************
