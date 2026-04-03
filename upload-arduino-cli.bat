@@ -14,7 +14,7 @@ echo Arduino CLI: "%ARDUINO_CLI%"
 echo Arduino CLI config: "%ARDUINO_CONFIG_FILE%"
 if defined ARDUINO_IDE_LIBRARIES echo Arduino IDE libraries: "%ARDUINO_IDE_LIBRARIES%"
 echo Uploading %1
-"%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --verbose "%~1"
+"%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --verbose "%~1" -b "%~2" -p "%~3"
 echo Done
 goto :eof
 
