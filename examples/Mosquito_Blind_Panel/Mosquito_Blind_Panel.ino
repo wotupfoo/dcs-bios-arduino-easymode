@@ -51,9 +51,9 @@ DcsBios::EasyServo_SG90 ahorizonpitch(
 // RATE OF CLIMB INDICATOR
 // 
 // Developer note: DCS-BIOS doesn't have a Rate of Climb telemetry source. 
-// So, we have to create it by subscribing to the Altitude source and 
-// calculating the rate of change over time. Once calculated we can update 
-// the stepper position based on the rate of climb.
+// So, we have to create it by watching the Altitude and calculating the rate of 
+// change over time. Once calculated we can update the stepper position based on 
+// the rate of climb/fall.
 // ******************************************************************************
 unsigned int PreviousAltitude = 0;          // Previous altitude reading for ROC calculation
 unsigned long LastRocUpdateMs = 0;          // Timestamp of last ROC update (2Hz = 500ms interval)
@@ -68,6 +68,33 @@ DcsBios::EasyStepper_Manual_28BYJ48 rateofclimbstepper(
     ROCLIMB_ZERO_PIN,          // Zero angle detection input pin
     true                       // inputZeroCentered: true because center is 0 ft/min
 );
+
+void updateRateOfClimbStepper(unsigned int altitudeFt) {
+    unsigned long nowMs = millis();
+    if (LastRocUpdateMs == 0) {
+        PreviousAltitude = altitudeFt;
+        LastRocUpdateMs = nowMs;
+        rateofclimbstepper.setPosition(32768U);
+        return;
+    }
+
+    unsigned long elapsedMs = nowMs - LastRocUpdateMs;
+    if (elapsedMs < 500UL) return;
+
+    long altitudeDeltaFt = (long)altitudeFt - (long)PreviousAltitude;
+    float elapsedMinutes = (float)elapsedMs / 60000.0f;
+    if (elapsedMinutes <= 0.0f) return;
+
+    RateOfClimbFtPerMin = (int)((float)altitudeDeltaFt / elapsedMinutes);
+    RateOfClimbFtPerMin = constrain(RateOfClimbFtPerMin, -4000, 4000);   // Maximum needle deflection
+
+    // Map 0..32k..64k to -4000..0..+4000 ft/min for the stepper position
+    const long centeredTarget = 32768L + ((long)RateOfClimbFtPerMin * 32767L) / 4000L;
+    rateofclimbstepper.setPosition((unsigned int)centeredTarget);
+
+    PreviousAltitude = altitudeFt;
+    LastRocUpdateMs = nowMs;
+}
 
 // ******************************************************************************
 // ALTIMETER (with special handling for all 3 needles on one stepper)
@@ -104,6 +131,7 @@ void onAltimeterhundredsChange(unsigned int newValue) {
     AltimeterHundreds = newValue;
     Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
     altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
+    updateRateOfClimbStepper(Altitude);
 }
 DcsBios::IntegerBuffer altimeterhundredsBuffer(SpitfireLFMkIX_ALTIMETERHUNDREDS, onAltimeterhundredsChange);
 
@@ -112,6 +140,7 @@ void onAltimeterthousandsChange(unsigned int newValue) {
     AltimeterThousands = newValue;
     Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
     altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
+    updateRateOfClimbStepper(Altitude);
 }
 DcsBios::IntegerBuffer altimeterthousandsBuffer(SpitfireLFMkIX_ALTIMETERTHOUSANDS, onAltimeterthousandsChange);
 
@@ -120,6 +149,7 @@ void onAltimetertensthousandsChange(unsigned int newValue) {
     AltimeterTenThousands = newValue;
     Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
     altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
+    updateRateOfClimbStepper(Altitude);
 }
 DcsBios::IntegerBuffer altimetertensthousandsBuffer(SpitfireLFMkIX_ALTIMETERTENSTHOUSANDS, onAltimetertensthousandsChange);
 
@@ -148,25 +178,55 @@ DcsBios::EasyServo_SG90 turngauge(
     TURN_SERVO_PIN             // Arduino pin connected to the servo signal wire
 );
 
+/* When any Stepper Motor can't keep up it will call this function.
+ * The main reason this will happen is if you have too many Stepper Motors.
+ * The function turns on the builtin led and leaves it on.
+ * There is extra information you can use to figure out what's going wrong if you
+ * don't want to simply have fewer Steppers on this board.
+ */
+void onStepperTimingFault(
+    unsigned int address,           // The compiled address of either altimeterNeedle or compassCard
+    unsigned long serviceGapUs,     // How late in microseconds (uS) it was
+    unsigned long allowedGapUs      // How many microseconds with a 1.5x (default) headroom were expected
+) {
+    (void)address;
+    (void)serviceGapUs;
+    (void)allowedGapUs;
+    digitalWrite(LED_BUILTIN, HIGH);
+    while(1);   // Stop everything to prevent further damage to the stepper or missed steps. Requires manual reset.
+}
+
 // *******************************************************************************
 // ARDUINO SETUP
 // *******************************************************************************
 void setup() {
     // Airspeed
-    airspeedgauge.setMaxAngle(720);
+    airspeedgauge.configureBoundedBehavior(0.0f, 720.0f);
+    airspeedgauge.setMaxRpm(20.0f); // adjust as needed
+    airspeedgauge.setAccelRpmPerSec(40.0f);
+    airspeedgauge.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
+    airspeedgauge.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
+                          // Requires zero switch on AIRSPEED_ZERO_PIN (optional if no switch)
 
     // Artificial Horizon
     ahorizonbank.setMaxAngle(30);
     ahorizonpitch.setMaxAngle(30);
 
     // Rate of Climb
-    rateofclimbstepper.configureBoundedBehavior(0.0f, 360.0f);
+    // The gauge is +/- 4,000 ft/min full scale (+/- 135 degrees) with a center at 0 ft/min.
+    rateofclimbstepper.configureBoundedBehavior(-135.0f, 135.0f); // adjust as needed for max climb/descent rate
     rateofclimbstepper.setMaxRpm(20.0f); // adjust as needed
     rateofclimbstepper.setAccelRpmPerSec(40.0f);
+    rateofclimbstepper.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
+    rateofclimbstepper.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
+                               // Requires zero switch on ROCLIMB_ZERO_PIN (optional if no switch)
+
     // configure altimeter stepper ranges
-    altimeter3NeedleStepper.configureBoundedBehavior(0.0f, 360.0f);
+    // 100,000ft full scale = 1,000 revolutions (360 degrees) of the hundred-foot needle
+    altimeter3NeedleStepper.configureBoundedBehavior(0.0f, 360.0f*1000.0f);
     altimeter3NeedleStepper.setMaxRpm(20.0f); // adjust as needed
     altimeter3NeedleStepper.setAccelRpmPerSec(40.0f);
+    altimeter3NeedleStepper.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
     altimeter3NeedleStepper.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
                                      // Requires zero switch on ALTIMETER_ZERO_PIN (optional if no switch)
 
@@ -174,19 +234,13 @@ void setup() {
     DIStepper.configureBoundedBehavior(0.0f, 360.0f);
     DIStepper.setMaxRpm(20.0f); // adjust as needed
     DIStepper.setAccelRpmPerSec(40.0f);
+    DIStepper.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
     DIStepper.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
                       // Requires zero switch on DI_ZERO_PIN (optional if no switch)
 
     // Slip and Turn
     sideslipgauge.setMaxAngle(30);
     turngauge.setMaxAngle(45);
-
-    // Airspeed
-    airspeedgauge.configureBoundedBehavior(0.0f, 720.0f);
-    airspeedgauge.setMaxRpm(20.0f); // adjust as needed
-    airspeedgauge.setAccelRpmPerSec(40.0f);
-    airspeedgauge.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
-                          // Requires zero switch on AIRSPEED_ZERO_PIN (optional if no switch)
 
     DcsBios::setup();
 }
@@ -202,7 +256,7 @@ void loop() {
     // -------------------------------------
 
     // Service the Air Speed stepper
-    airspeedgauge.loop();
+    //      Automatically updated by DcsBios::loop() since they are EasyServo_SG90 instances.
 
     // Artificial Horizon servos 
     //      Automatically updated by DcsBios::loop() since they are EasyServo_SG90 instances.
