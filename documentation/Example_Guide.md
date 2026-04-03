@@ -6,7 +6,7 @@ The goal is simple:
 
 1. Install the software you need.
 2. Open a blank Arduino sketch.
-3. Find the right code snippet in BORT (The DCS-<u>B</u>I<u>O</u>S <u>R</u>eference <u>T</u>ool).
+3. Find the right code snippet in BORT (The DCS-BIOS Reference Tool).
 4. Copy and paste it into the blank sketch.
 5. Make only a few small changes for your own hardware.
 
