@@ -1,6 +1,10 @@
 #ifndef __DCSBIOS_EASY_STEPPERS_H
 #define __DCSBIOS_EASY_STEPPERS_H
 
+#ifndef __DCSBIOS_EASY_MODE_H
+#error Do not call DcsBiosEasySteppers.h directly. Include DcsBiosEasyMode.h instead.
+#endif
+
 #include <math.h>
 
 namespace DcsBios {
@@ -438,16 +442,16 @@ public:
         uint8_t pin2,                            // Stepper driver input pin 2
         uint8_t pin3,                            // Stepper driver input pin 3
         uint8_t pin4,                            // Stepper driver input pin 4
-        bool reverse = false,                    // Reverse the direction (true or false)
-        float trimDeg = 0.0f,                    // Trim Degrees: rotate the whole repeating scale around the dial face
-        float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
-        float accelRpmPerSec = ProfileT::kDefaultAccelRpmPerSec, // Maximum Acceleration in RPM per second
-        uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
-        bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
-        int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
-        float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
-        unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
-        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
+        bool reverse,                            // Reverse the direction (true or false)
+        float trimDeg,                           // Trim Degrees: rotate the whole repeating scale around the dial face
+        float maxRpm,                            // Maximum Speed in Revolutions Per Minute (RPM)
+        float accelRpmPerSec,                    // Maximum Acceleration in RPM per second
+        uint8_t zeroPin,                         // zeroPin: optional microswitch or opto detector input pin
+        bool zeroActiveLow,                      // zeroPin Active LOW (active when the signal is pulled to Ground)
+        int8_t homeDirection,                    // Homing direction: -1 or +1 while seeking zero
+        float zeroOffsetDeg,                     // Zero Offset Degrees: fine adjustment after homing
+        unsigned int inputMaxValue,              // Maximum incoming DCS-BIOS value for this source
+        bool inputZeroCentered                   // True if the middle of the DCS-BIOS range should map to 0 degrees
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -544,16 +548,16 @@ public:
         uint8_t pin4,                            // Stepper driver input pin 4
         float minAngleDeg,                       // Minimum needle angle in degrees for the lowest DCS-BIOS value
         float maxAngleDeg,                       // Maximum needle angle in degrees for the highest DCS-BIOS value
-        bool reverse = false,                    // Reverse the direction (true or false)
-        float trimDeg = 0.0f,                    // Trim Degrees: rotate the whole scale to match the printed dial face
-        float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
-        float accelRpmPerSec = ProfileT::kDefaultAccelRpmPerSec, // Maximum Acceleration in RPM per second
-        uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
-        bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
-        int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
-        float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
-        unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
-        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
+        bool reverse,                            // Reverse the direction (true or false)
+        float trimDeg,                           // Trim Degrees: rotate the whole scale to match the printed dial face
+        float maxRpm,                            // Maximum Speed in Revolutions Per Minute (RPM)
+        float accelRpmPerSec,                    // Maximum Acceleration in RPM per second
+        uint8_t zeroPin,                         // zeroPin: optional microswitch or opto detector input pin
+        bool zeroActiveLow,                      // zeroPin Active LOW (active when the signal is pulled to Ground)
+        int8_t homeDirection,                    // Homing direction: -1 or +1 while seeking zero
+        float zeroOffsetDeg,                     // Zero Offset Degrees: fine adjustment after homing
+        unsigned int inputMaxValue,              // Maximum incoming DCS-BIOS value for this source
+        bool inputZeroCentered                   // True if the middle of the DCS-BIOS range should map to 0 degrees
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -611,6 +615,11 @@ public:
         homeState_ = isZeroActive() ? HOME_RELEASE_SWITCH : HOME_SEEK_SWITCH;
     }
 
+    // Backward-compatible alias for older sketches.
+    void home() {
+        startHoming();
+    }
+
     bool isHomed() const {
         return (homeState_ == HOME_DONE);
     }
@@ -629,8 +638,20 @@ public:
         continuous_ = false;
     }
 
+    // Backward-compatible helper for older sketches that explicitly switch
+    // between bounded and continuous modes after construction.
+    void configureBoundedBehavior(float minAngleDeg, float maxAngleDeg) {
+        continuous_ = false;
+        minAngleDeg_ = minAngleDeg;
+        maxAngleDeg_ = maxAngleDeg;
+    }
+
     void setDirection(EasyModeDir direction) {
         reverse_ = (direction == EasyModeDir::CCW);
+    }
+
+    void setDirection(bool direction) {
+        reverse_ = (direction == 1);
     }
 
     void setInputMaxValue(unsigned int inputMaxValue) {
@@ -690,6 +711,11 @@ public:
 
     void setAccelerationRpmPerSec(float accelRpmPerSec) {
         stepper_.setAcceleration(accelRpmPerSecToStepsPerSec2(accelRpmPerSec));
+    }
+
+    // Backward-compatible alias for older sketches.
+    void setAccelRpmPerSec(float accelRpmPerSec) {
+        setAccelerationRpmPerSec(accelRpmPerSec);
     }
 
     void setCurrentPositionDeg(float angleDeg) {
@@ -757,8 +783,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroPin,
+        bool inputZeroCentered
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -821,8 +847,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroPin,
+        bool inputZeroCentered
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -865,7 +891,85 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4
-    ) : EasyStepperOutputT<Stepper28Byj48Profile>(address, mask, shift, pin1, pin2, pin3, pin4) {
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        true,
+        -1,
+        0.0f,
+        65535,
+        false
+    ) {
+    }
+
+    // Backward-compatible flexible constructor with zero switch support.
+    EasyStepper_28BYJ48(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535,
+        inputZeroCentered
+    ) {
+    }
+
+    // Backward-compatible flexible constructor for masked DCS-BIOS inputs.
+    EasyStepper_28BYJ48(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin,
+        bool inputZeroCentered = false
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        false,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535,
+        inputZeroCentered
+    ) {
     }
 };
 
@@ -908,8 +1012,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroPin,
+        bool inputZeroCentered
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -972,8 +1076,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroPin,
+        bool inputZeroCentered
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1208,10 +1312,10 @@ private:
         lastServiceUs_ = 0UL;
         lastExpectedStepIntervalUs_ = 0UL;
 
-        configureContinuousBehavior(false, false, false);
+        setContinuousBehaviorFlags(false, false, false);
     }
 
-    void configureContinuousBehavior(bool useModulo, bool useShortestPath, bool inputIsAngle) {
+    void setContinuousBehaviorFlags(bool useModulo, bool useShortestPath, bool inputIsAngle) {
         continuousUseModulo_ = useModulo;
         continuousUseShortestPath_ = useShortestPath;
         continuousInputIsAngle_ = inputIsAngle;
@@ -1342,7 +1446,7 @@ public:
 
     void configureContinuousBehavior(bool useModulo, bool useShortestPath, bool inputIsAngle) {
         continuous_ = true;
-        configureContinuousBehavior(useModulo, useShortestPath, inputIsAngle);
+        setContinuousBehaviorFlags(useModulo, useShortestPath, inputIsAngle);
     }
 
     void configureBoundedBehavior(float minAngleDeg, float maxAngleDeg) {

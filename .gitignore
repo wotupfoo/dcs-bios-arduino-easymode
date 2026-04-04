@@ -26,6 +26,7 @@ Release/
 *.ino.cpp
 *.ino.cpp.d
 
+.arduino-build/
 .pio/
 .pioenvs/
 .piolibdeps/

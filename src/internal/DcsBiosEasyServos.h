@@ -1,6 +1,10 @@
 #ifndef __DCSBIOS_EASY_SERVOS_H
 #define __DCSBIOS_EASY_SERVOS_H
 
+#ifndef __DCSBIOS_EASY_MODE_H
+#error Do not call DcsBiosEasyServos.h directly. Include DcsBiosEasyMode.h instead.
+#endif
+
 #include <math.h>
 
 #ifdef ARDUINO_ARCH_ESP32
@@ -133,11 +137,14 @@ public:
     }
 
     virtual void loop() override {
+Serial.println("EasyServo loop");
         if (!servo_.attached()) {
+            Serial.println("EasyServo attaching");
             servo_.attach(pin_, ProfileT::kMinPulseUs, ProfileT::kMaxPulseUs);
         }
 
         if (hasUpdatedData()) {
+Serial.println("EasyServo has updated data");
             long outMin = minAngleDeg_ + trimDeg_;
             long outMax = maxAngleDeg_ + trimDeg_;
 
@@ -148,6 +155,8 @@ public:
             }
 
             long angleDeg = map((long)readSourceValue(), 0L, (long)inputMaxValue_, outMin, outMax);
+            Serial.println("EasyServo has updated data");
+Serial.print("Setting servo angle to: "); Serial.println(angleDeg);
             servo_.writeMicroseconds(angleToPulse(angleDeg));
         }
     }
@@ -157,6 +166,8 @@ public:
     void setMaxAngle(float angleDeg) { maxAngleDeg_ = roundToInt(angleDeg); }
 
     void setDirection(EasyModeDir direction) { reverse_ = (direction == EasyModeDir::CCW); }
+
+    void setDirection(int direction) { reverse_ = (direction == -1); }
 
     void setInputMaxValue(unsigned int inputMaxValue) {
         inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;

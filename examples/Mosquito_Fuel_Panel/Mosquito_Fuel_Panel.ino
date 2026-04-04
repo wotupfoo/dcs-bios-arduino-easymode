@@ -35,41 +35,38 @@
 #define FUEL_STBD_CUTOUT_PIN 2
 
 #define FUEL_COCK_PORT_OUTER_PIN 9
-#define FUEL_COCK_PORT_OFF_PIN   10
+//#define FUEL_COCK_PORT_OFF_PIN   10
 #define FUEL_COCK_PORT_MAIN_PIN  11
 
 #define FUEL_COCK_STBD_MAIN_PIN  6
-#define FUEL_COCK_STBD_OFF_PIN   7
+//#define FUEL_COCK_STBD_OFF_PIN   7
 #define FUEL_COCK_STBD_OUTER_PIN 8
 #else
 #error "Unsupported board - Please use an Arduino Nano or implement your own"
 #endif
 
 // Tank Pressurizing Lever
-DcsBios::Switch2Pos tankPress("TANK_PRESS", TANK_PRESSURE_PIN);
+DcsBios::EasyMode::Switch2Pos tankPress("TANK_PRESS", TANK_PRESSURE_PIN);
 
 // Port Fuel Cutout
-DcsBios::Switch2Pos portFuelCutout("PORT_FUEL_CUTOUT", FUEL_PORT_CUTOUT_PIN);
+DcsBios::EasyMode::Switch2Pos portFuelCutout("PORT_FUEL_CUTOUT", FUEL_PORT_CUTOUT_PIN);
 
 // Starboard Fuel Cutout
-DcsBios::Switch2Pos stbdFuelCutout("STBD_FUEL_CUTOUT", FUEL_STBD_CUTOUT_PIN);
+DcsBios::EasyMode::Switch2Pos stbdFuelCutout("STBD_FUEL_CUTOUT", FUEL_STBD_CUTOUT_PIN);
 
 // Port Fuel Cock
-const byte portFuelCockPins[3] = {  FUEL_COCK_PORT_OUTER_PIN, 
-                                    FUEL_COCK_PORT_OFF_PIN, 
-                                    FUEL_COCK_PORT_MAIN_PIN};
-DcsBios::SwitchMultiPos portFuelCock("PORT_FUEL_COCK", portFuelCockPins, 3);
-
+DcsBios::EasyMode::Switch3Pos portFuelCock("PORT_FUEL_COCK", 
+                                           FUEL_COCK_PORT_MAIN_PIN, 
+                                           FUEL_COCK_PORT_OUTER_PIN);
 // Starboard Fuel Cock
-const byte stbdFuelCockPins[3] = {  FUEL_COCK_STBD_MAIN_PIN, 
-                                    FUEL_COCK_STBD_OFF_PIN, 
-                                    FUEL_COCK_STBD_OUTER_PIN};
-DcsBios::SwitchMultiPos stbdFuelCock("STBD_FUEL_COCK", stbdFuelCockPins, 3);
+DcsBios::EasyMode::Switch3Pos stbdFuelCock("STBD_FUEL_COCK", 
+                                           FUEL_COCK_STBD_MAIN_PIN, 
+                                           FUEL_COCK_STBD_OUTER_PIN);
 
 void setup() {
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }
