@@ -137,14 +137,11 @@ public:
     }
 
     virtual void loop() override {
-Serial.println("EasyServo loop");
         if (!servo_.attached()) {
-            Serial.println("EasyServo attaching");
             servo_.attach(pin_, ProfileT::kMinPulseUs, ProfileT::kMaxPulseUs);
         }
 
         if (hasUpdatedData()) {
-Serial.println("EasyServo has updated data");
             long outMin = minAngleDeg_ + trimDeg_;
             long outMax = maxAngleDeg_ + trimDeg_;
 
@@ -155,8 +152,6 @@ Serial.println("EasyServo has updated data");
             }
 
             long angleDeg = map((long)readSourceValue(), 0L, (long)inputMaxValue_, outMin, outMax);
-            Serial.println("EasyServo has updated data");
-Serial.print("Setting servo angle to: "); Serial.println(angleDeg);
             servo_.writeMicroseconds(angleToPulse(angleDeg));
         }
     }
@@ -176,9 +171,7 @@ Serial.print("Setting servo angle to: "); Serial.println(angleDeg);
     void setTrimDeg(int trimDeg) { trimDeg_ = trimDeg; }
 };
 
-// Public naming scheme for snippet generators and no-code users:
-//   EasyServo        -> generic default servo
-//   EasyServo_SG90   -> SG90-specific defaults
+// Internal servo types used by the public DcsBios::EasyMode aliases.
 using EasyServo = EasyServoOutputT<GenericServoProfile>;
 
 class EasyServo_SG90 : public EasyServoOutputT<Sg90Profile> {
@@ -197,10 +190,6 @@ public:
     ) : EasyServoOutputT<Sg90Profile>(address, mask, shift, pin) {
     }
 };
-
-// Backwards-compatible aliases.
-using EasyServoOutput = EasyServo;
-using EasySg90ServoOutput = EasyServoOutputT<Sg90Profile>;
 
 } // namespace DcsBios
 

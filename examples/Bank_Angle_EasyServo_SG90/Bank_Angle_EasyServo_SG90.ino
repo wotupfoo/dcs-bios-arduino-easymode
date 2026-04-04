@@ -58,7 +58,7 @@
  *    ahorizonbank.setDirection(...)
  */
 
-DcsBios::EasyServo_SG90 ahorizonbank(
+DcsBios::EasyMode::Servo_SG90 ahorizonbank(
     P_51D_AHORIZON_BANK_A, // Telemetry source: P-51D artificial horizon bank angle
     8                      // Arduino pin connected to the servo signal wire
 );
@@ -66,7 +66,7 @@ DcsBios::EasyServo_SG90 ahorizonbank(
 /* If you own the SpitfireLFMkIX plane, here is how you would do it for that aircraft.
  * Other aircraft have similar Telemetry Source names. Use Bort-EasyMode to find the name.
  */
-//DcsBios::EasyServo_SG90 ahorizonbank(
+//DcsBios::EasyMode::Servo_SG90 ahorizonbank(
 //    SpitfireLFMkIX_AHORIZONBANK_A, // Telemetry source
 //    PIN                          // Arduino pin connected to the servo signal wire
 //);
@@ -78,9 +78,9 @@ void setup() {
     ahorizonbank.setTrimDeg(0.0f);   // Adjust as needed to align with printed dial zero
     ahorizonbank.setDirection(1);    // Set to -1 to reverse direction if needle moves opposite expected
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }

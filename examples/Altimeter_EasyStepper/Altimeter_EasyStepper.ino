@@ -50,7 +50,7 @@
  * of the scale or in the middle of it. Altitude starts at the low end of the
  * range, so this example uses false.
  */
-DcsBios::EasyStepper_Bounded altimeterNeedle(
+DcsBios::EasyMode::Stepper altimeterNeedle(
     CommonData_ALT_MSL_FT_A, // Telemetry source: altitude above mean sea level in feet
     8,                      // Stepper driver input pin 1
     9,                      // Stepper driver input pin 2
@@ -63,9 +63,9 @@ DcsBios::EasyStepper_Bounded altimeterNeedle(
 void setup() {
     altimeterNeedle.setMaxAngle(235800.0f);
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }

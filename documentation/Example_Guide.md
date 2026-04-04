@@ -207,8 +207,8 @@ Choose the snippet that matches your hardware.
 
 Examples:
 
-- SG90 servo: choose the `EasyServo_SG90` snippet
-- generic servo: choose the `EasyServo` snippet
+- SG90 servo: choose the `DcsBios::EasyMode::Servo_SG90` snippet
+- generic servo: choose the `DcsBios::EasyMode::Servo` snippet
 - generic stepper: choose a generic stepper snippet
 - 28BYJ-48 stepper: choose a `28BYJ48` snippet
 
@@ -222,9 +222,9 @@ From Bort-EasyMode, copy the hardware snippet you want.
 
 Examples:
 
-- `DcsBios::EasyServo_SG90 ...`
-- `DcsBios::EasyStepper_Bounded ...`
-- `DcsBios::EasyStepper_28BYJ48_Continuous ...`
+- `DcsBios::EasyMode::Servo_SG90 ...`
+- `DcsBios::EasyMode::Stepper ...`
+- `DcsBios::EasyMode::Stepper_28BYJ48 ...`
 
 ### Where To Paste It
 
@@ -265,7 +265,7 @@ Example:
 #define DCSBIOS_DEFAULT_SERIAL
 #include "DcsBiosEasyMode.h"
 
-DcsBios::EasyServo_SG90 altimeterNeedle(
+DcsBios::EasyMode::Servo_SG90 altimeterNeedle(
     CommonData_ALT_MSL_FT_A,
     5
 );

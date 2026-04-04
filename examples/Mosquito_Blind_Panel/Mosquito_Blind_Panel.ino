@@ -3,6 +3,8 @@
 
 /* The pin configuration is in boardconfig.h.
  * Open that file and change the pinnouts as needed.
+ * Arduino Mega2560 and Due are there as examples, but you can modify for any 
+ * board by following the pin availability notes and examples in that file.
  */
 // Hint: Put your cursor over boardconfig.h and press F12 to open it
 #include "boardconfig.h"    
@@ -24,7 +26,7 @@
 // *****************************************************************************
 // AIR SPEED INDICATOR (ASI)
 // *****************************************************************************
-DcsBios::EasyStepper_28BYJ48_Bounded airspeedgauge(
+DcsBios::EasyMode::Stepper_28BYJ48 airspeedgauge(
     Mosquito_AIRSPEED_G_A,        // Telemetry source
     AIRSPEED_STEPPER_PIN1,        // Arduino pin connected to the stepper driver input pin 1
     AIRSPEED_STEPPER_PIN2,        // Arduino pin connected to the stepper driver input pin 2
@@ -37,12 +39,12 @@ DcsBios::EasyStepper_28BYJ48_Bounded airspeedgauge(
 // ******************************************************************************
 // ARTIFICIAL HORIZON BANK & PITCH
 // ******************************************************************************
-DcsBios::EasyServo_SG90 ahorizonbank(
+DcsBios::EasyMode::Servo_SG90 ahorizonbank(
     Mosquito_AHORIZON_BANK_G_A, // Telemetry source
     AHORIZON_BANK_SERVO_PIN       // Arduino pin connected to the servo signal wire
 );
 
-DcsBios::EasyServo_SG90 ahorizonpitch(
+DcsBios::EasyMode::Servo_SG90 ahorizonpitch(
     Mosquito_AHORIZON_PITCH_G_A, // Telemetry source
     AHORIZON_PITCH_SERVO_PIN       // Arduino pin connected to the servo signal wire
 );
@@ -60,7 +62,7 @@ unsigned long LastRocUpdateMs = 0;          // Timestamp of last ROC update (2Hz
 int RateOfClimbFtPerMin = 0;                // Calculated rate of climb in feet per minute
 
 // Rate of Climb stepper (calculate from altitude deltas)
-DcsBios::EasyStepper_Manual_28BYJ48 rateofclimbstepper(
+DcsBios::EasyMode::Stepper_Manual_28BYJ48 rateofclimbstepper(
     ROCLIMB_STEPPER_PIN1,      // Arduino pin connected to the stepper driver input pin 1
     ROCLIMB_STEPPER_PIN2,      // Arduino pin connected to the stepper driver input pin 2
     ROCLIMB_STEPPER_PIN3,      // Arduino pin connected to the stepper driver input pin 3
@@ -117,7 +119,7 @@ unsigned int AltimeterHundreds = 0;         // Storage of the 100's of feet need
 unsigned int AltimeterThousands = 0;        // Storage of the 1,000's of feet needle position received from DCS-BIOS
 unsigned int AltimeterTenThousands = 0;     // Storage of the 10,000's of feet needle position received from DCS-BIOS
 
-DcsBios::EasyStepper_Manual_28BYJ48 altimeter3NeedleStepper(
+DcsBios::EasyMode::Stepper_Manual_28BYJ48 altimeter3NeedleStepper(
     ALTIMETER_STEPPER_PIN1,    // Arduino pin connected to the stepper driver input pin 1
     ALTIMETER_STEPPER_PIN2,    // Arduino pin connected to the stepper driver input pin 2
     ALTIMETER_STEPPER_PIN3,    // Arduino pin connected to the stepper driver input pin 3
@@ -156,7 +158,7 @@ DcsBios::IntegerBuffer altimetertensthousandsBuffer(SpitfireLFMkIX_ALTIMETERTENS
 // *******************************************************************************
 // GYROSCOPIC DIRECTIONAL INDICATOR (DI) with adjustment rotary encoder
 // *******************************************************************************
-DcsBios::EasyStepper_28BYJ48_Bounded DIStepper(
+DcsBios::EasyMode::Stepper_28BYJ48 DIStepper(
     Mosquito_DI_G_A,          // Telemetry source
     DI_STEPPER_PIN1,          // Arduino pin connected to the stepper driver input pin 1
     DI_STEPPER_PIN2,          // Arduino pin connected to the stepper driver input pin 2
@@ -169,11 +171,11 @@ DcsBios::EasyStepper_28BYJ48_Bounded DIStepper(
 // *******************************************************************************
 // SIDE SLIP GAUGE & TURN GAUGE
 // *******************************************************************************
-DcsBios::EasyServo_SG90 sideslipgauge(
+DcsBios::EasyMode::Servo_SG90 sideslipgauge(
     Mosquito_SIDESLIP_G_A, // Telemetry source: altitude above mean sea level in feet
     SIDESLIP_SERVO_PIN             // Arduino pin connected to the servo signal wire
 );
-DcsBios::EasyServo_SG90 turngauge(
+DcsBios::EasyMode::Servo_SG90 turngauge(
     Mosquito_TURN_G_A, // Telemetry source: altitude above mean sea level in feet
     TURN_SERVO_PIN             // Arduino pin connected to the servo signal wire
 );
@@ -242,24 +244,24 @@ void setup() {
     sideslipgauge.setMaxAngle(30);
     turngauge.setMaxAngle(45);
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 // *******************************************************************************
 // ARDUINO LOOP
 // *******************************************************************************
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 
     // -------------------------------------
     // Spitfire Blind Panel Top Row
     // -------------------------------------
 
     // Service the Air Speed stepper
-    //      Automatically updated by DcsBios::loop() since they are EasyServo_SG90 instances.
+//      Automatically updated by DcsBios::EasyMode::loop() since they are Servo_SG90 instances.
 
     // Artificial Horizon servos 
-    //      Automatically updated by DcsBios::loop() since they are EasyServo_SG90 instances.
+//      Automatically updated by DcsBios::EasyMode::loop() since they are Servo_SG90 instances.
 
     // Service the Rate of Climb stepper (calculated from altitude change over the last 1/2 second)
     rateofclimbstepper.loop();
@@ -278,5 +280,5 @@ void loop() {
     DIStepper.loop();
 
     // Slip and Turn servos
-    //      Automatically updated by DcsBios::loop() since they are EasyServo_SG90 instances.
+//      Automatically updated by DcsBios::EasyMode::loop() since they are Servo_SG90 instances.
 }

@@ -14,6 +14,10 @@
 namespace DcsBios {
 namespace EasyMode {
 
+// Use -1 for optional pins that are not connected, such as an unused zero switch.
+// The constructors accept this and map it to the library's internal "no pin" value.
+static constexpr int NoPin = -1;
+
 inline void setup() {
     DcsBios::setup();
 }
@@ -70,16 +74,15 @@ using StringBuffer = DcsBios::StringBuffer<LENGTH>;
 using LED = DcsBios::LED;
 using Dimmer = DcsBios::Dimmer;
 
-using ServoSG90 = EasyServo_SG90;
+using Servo = EasyServo;
+using Servo_SG90 = EasyServo_SG90;
 using ServoOutput = DcsBios::ServoOutput;
 
-using Stepper_Bounded = EasyStepper_Bounded;
-using Stepper_Continuous = EasyStepper_Continuous;
-using Stepper_28BYJ48_Bounded = EasyStepper_28BYJ48_Bounded;
-using Stepper_28BYJ48_Continuous = EasyStepper_28BYJ48_Continuous;
-using Stepper_Manual_28BYJ48 = EasyStepper_Manual_28BYJ48;
-using StepperOutput = EasyStepperOutput;
-using Stepper28Byj48Output = Easy28Byj48Output;
+using StepperMode = DcsBios::EasyModeStepperMode;
+using Stepper = EasyStepper;
+using Stepper_Manual = EasyStepper_Manual<GenericStepperProfile>;
+using Stepper_28BYJ48 = EasyStepper_28BYJ48;
+using Stepper_Manual_28BYJ48 = EasyStepper_Manual<Stepper28Byj48Profile>;
 
 } // namespace EasyMode
 } // namespace DcsBios

@@ -23,7 +23,7 @@
  * The artificial horizon bank signal is a centered-zero value, so this example
  * uses true.
  */
-DcsBios::EasyStepper_Bounded bankAngleNeedle(
+DcsBios::EasyMode::Stepper bankAngleNeedle(
     P_51D_AHORIZON_BANK_A, // Telemetry source: P-51D artificial horizon bank angle
     8,                     // Stepper driver input pin 1
     9,                     // Stepper driver input pin 2
@@ -38,9 +38,9 @@ void setup() {
     bankAngleNeedle.setMinAngle(-45.0f);
     bankAngleNeedle.setMaxAngle(45.0f);
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }

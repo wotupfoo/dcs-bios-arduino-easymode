@@ -25,7 +25,7 @@
  * The artificial horizon bank signal is a centered-zero value, so this example
  * uses true.
  */
-DcsBios::EasyStepper_28BYJ48_Bounded bankAngleNeedle(
+DcsBios::EasyMode::Stepper_28BYJ48 bankAngleNeedle(
     P_51D_AHORIZON_BANK_A, // Telemetry source: P-51D artificial horizon bank angle
     8,                     // 28BYJ-48 / ULN2003 input pin 1
     9,                     // 28BYJ-48 / ULN2003 input pin 2
@@ -45,9 +45,9 @@ void setup() {
     // If you have a zero switch on pin 12, home() will seek it on startup.
     bankAngleNeedle.home();
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }

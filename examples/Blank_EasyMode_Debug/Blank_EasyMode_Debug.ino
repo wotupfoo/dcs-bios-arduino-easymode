@@ -10,7 +10,7 @@
  * leaves it on.
  */
 
-DcsBios::EasyStepper_28BYJ48_Bounded altimeterNeedle(
+DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
     CommonData_ALT_MSL_FT_A, // Telemetry source: altitude above mean sea level in feet
     8,                      // 28BYJ-48 / ULN2003 input pin 1
     9,                      // 28BYJ-48 / ULN2003 input pin 2
@@ -19,13 +19,15 @@ DcsBios::EasyStepper_28BYJ48_Bounded altimeterNeedle(
     12,                     // Zero angle detection input pin
     false                   // Zero is in the middle of the range
 );
-DcsBios::Easy28Byj48Output_Continuous compassCard(
+DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
     CommonData_HDG_DEG, // Telemetry source: heading in degrees
     13,                 // 28BYJ-48 / ULN2003 input pin 1
     14,                 // 28BYJ-48 / ULN2003 input pin 2
     15,                 // 28BYJ-48 / ULN2003 input pin 3
     16,                 // 28BYJ-48 / ULN2003 input pin 4
-    false               // Zero is in the middle of the range
+    DcsBios::EasyMode::NoPin,
+    false,                                   // Zero is in the middle of the range
+    DcsBios::EasyMode::StepperMode::Wrap     // Wrap through 360 degrees smoothly
 );
 
 /* When any Stepper Motor can't keep up it will call this function.
@@ -52,11 +54,12 @@ void setup() {
     altimeterNeedle.setMaxAngle(360);
     altimeterNeedle.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
 
+    compassCard.setInputMaxValue(360);                         // CommonData_HDG_DEG is already in degrees
     compassCard.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }

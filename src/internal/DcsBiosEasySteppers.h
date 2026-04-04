@@ -47,6 +47,11 @@ using Stepper28Byj48Profile = StepperProfile<
     true  // swap the middle pins for AccelStepper
 >;
 
+enum class EasyModeStepperMode {
+    Sweep,
+    Wrap
+};
+
 template<typename ProfileT>
 class EasyStepperOutputT : public Int16Buffer {
 public:
@@ -742,7 +747,82 @@ public:
 //   EasyStepper_28BYJ48                -> legacy flexible 28BYJ-48 stepper
 //   EasyStepper_28BYJ48_Bounded        -> 28BYJ-48 bounded sweep stepper
 //   EasyStepper_28BYJ48_Continuous     -> 28BYJ-48 continuous angle stepper
-using EasyStepper = EasyStepperOutputT<GenericStepperProfile>;
+class EasyStepper : public EasyStepperOutputT<GenericStepperProfile> {
+public:
+    EasyStepper(
+        unsigned int address,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        bool inputZeroCentered = false,
+        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+    ) : EasyStepperOutputT<GenericStepperProfile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        GenericStepperProfile::kDefaultMaxRpm,
+        GenericStepperProfile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535U,
+        inputZeroCentered
+    ) {
+        if (mode == EasyModeStepperMode::Sweep) {
+            this->configureBoundedBehavior(
+                inputZeroCentered ? -180.0f : 0.0f,
+                inputZeroCentered ? 180.0f : 360.0f
+            );
+            this->setInputMaxValue(65535U);
+        }
+    }
+
+    EasyStepper(
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        uint8_t pin1,
+        uint8_t pin2,
+        uint8_t pin3,
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        bool inputZeroCentered = false,
+        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+    ) : EasyStepperOutputT<GenericStepperProfile>(
+        address,
+        mask,
+        shift,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        GenericStepperProfile::kDefaultMaxRpm,
+        GenericStepperProfile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535U,
+        inputZeroCentered
+    ) {
+        if (mode == EasyModeStepperMode::Sweep) {
+            this->configureBoundedBehavior(
+                inputZeroCentered ? -180.0f : 0.0f,
+                inputZeroCentered ? 180.0f : 360.0f
+            );
+            this->setInputMaxValue(65535U);
+        }
+    }
+};
 
 class EasyStepper_Bounded : public EasyStepperOutputT<GenericStepperProfile> {
 public:
@@ -879,8 +959,34 @@ public:
         uint8_t pin1,
         uint8_t pin2,
         uint8_t pin3,
-        uint8_t pin4
-    ) : EasyStepperOutputT<Stepper28Byj48Profile>(address, pin1, pin2, pin3, pin4) {
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        bool inputZeroCentered = false,
+        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
+        address,
+        pin1,
+        pin2,
+        pin3,
+        pin4,
+        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        Stepper28Byj48Profile::kDefaultMaxRpm,
+        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
+        zeroPin,
+        true,
+        -1,
+        0.0f,
+        65535U,
+        inputZeroCentered
+    ) {
+        if (mode == EasyModeStepperMode::Sweep) {
+            this->configureBoundedBehavior(
+                inputZeroCentered ? -180.0f : 0.0f,
+                inputZeroCentered ? 180.0f : 360.0f
+            );
+            this->setInputMaxValue(65535U);
+        }
     }
 
     EasyStepper_28BYJ48(
@@ -890,7 +996,10 @@ public:
         uint8_t pin1,
         uint8_t pin2,
         uint8_t pin3,
-        uint8_t pin4
+        uint8_t pin4,
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        bool inputZeroCentered = false,
+        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -899,35 +1008,7 @@ public:
         pin2,
         pin3,
         pin4,
-        false,
-        0.0f,
-        Stepper28Byj48Profile::kDefaultMaxRpm,
-        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
-        EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        true,
-        -1,
-        0.0f,
-        65535,
-        false
-    ) {
-    }
-
-    // Backward-compatible flexible constructor with zero switch support.
-    EasyStepper_28BYJ48(
-        unsigned int address,
-        uint8_t pin1,
-        uint8_t pin2,
-        uint8_t pin3,
-        uint8_t pin4,
-        uint8_t zeroPin,
-        bool inputZeroCentered = false
-    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
-        address,
-        pin1,
-        pin2,
-        pin3,
-        pin4,
-        false,
+        mode == EasyModeStepperMode::Wrap,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
@@ -935,41 +1016,16 @@ public:
         true,
         -1,
         0.0f,
-        65535,
+        65535U,
         inputZeroCentered
     ) {
-    }
-
-    // Backward-compatible flexible constructor for masked DCS-BIOS inputs.
-    EasyStepper_28BYJ48(
-        unsigned int address,
-        unsigned int mask,
-        unsigned char shift,
-        uint8_t pin1,
-        uint8_t pin2,
-        uint8_t pin3,
-        uint8_t pin4,
-        uint8_t zeroPin,
-        bool inputZeroCentered = false
-    ) : EasyStepperOutputT<Stepper28Byj48Profile>(
-        address,
-        mask,
-        shift,
-        pin1,
-        pin2,
-        pin3,
-        pin4,
-        false,
-        0.0f,
-        Stepper28Byj48Profile::kDefaultMaxRpm,
-        Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
-        zeroPin,
-        true,
-        -1,
-        0.0f,
-        65535,
-        inputZeroCentered
-    ) {
+        if (mode == EasyModeStepperMode::Sweep) {
+            this->configureBoundedBehavior(
+                inputZeroCentered ? -180.0f : 0.0f,
+                inputZeroCentered ? 180.0f : 360.0f
+            );
+            this->setInputMaxValue(65535U);
+        }
     }
 };
 
@@ -1455,12 +1511,6 @@ public:
         maxAngleDeg_ = maxAngleDeg;
     }
 };
-
-// Backwards-compatible aliases.
-using EasyStepperOutput = EasyStepper;
-using Easy28Byj48Output = EasyStepperOutputT<Stepper28Byj48Profile>;
-using EasyStepper_Manual_Generic = EasyStepper_Manual<GenericStepperProfile>;
-using EasyStepper_Manual_28BYJ48 = EasyStepper_Manual<Stepper28Byj48Profile>;
 
 } // namespace DcsBios
 

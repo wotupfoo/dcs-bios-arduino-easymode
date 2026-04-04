@@ -10,7 +10,7 @@
  * 2. Copy the code snippet that matches your hardware.
  * 3. Paste global declarations in the section below this comment.
  * 4. If the example tells you to change angles, trim, or other settings,
- *    place those lines in setup() before DcsBios::setup().
+ *    place those lines in setup() before DcsBios::EasyMode::setup().
  * 5. Upload the sketch to your Arduino board.
  *
  * This file is intentionally simple so it can be used as a first project
@@ -19,7 +19,7 @@
 
 // Paste copied DCS-BIOS Easy Mode objects here.
 // Example:
-// DcsBios::EasyServo_SG90 altimeterNeedle(CommonData_ALT_MSL_FT_A, 5);
+// DcsBios::EasyMode::Servo_SG90 altimeterNeedle(CommonData_ALT_MSL_FT_A, 5);
 
 void setup() {
     // Paste any extra setup lines here.
@@ -27,9 +27,9 @@ void setup() {
     // altimeterNeedle.setTrimDeg(3);
     // altimeterNeedle.setMaxAngle(180);
 
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }
