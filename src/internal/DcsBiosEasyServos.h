@@ -169,6 +169,10 @@ public:
     }
 
     void setTrimDeg(int trimDeg) { trimDeg_ = trimDeg; }
+
+    void setRawValue(unsigned int rawValue) {
+        this->Int16Buffer::onDcsBiosWrite(0U, rawValue);
+    }
 };
 
 // Internal servo types used by the public DcsBios::EasyMode aliases.

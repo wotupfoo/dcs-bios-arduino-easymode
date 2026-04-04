@@ -1,13 +1,13 @@
 # DCS-BIOS Easy Mode Arduino Library
 This library extends DCS-BIOS from Skunkworks adding support for Stepper motors and greatly simplifies the code that needs to be copied and pasted into your Arduino project. See the documentation for more on the philosophy of this project.
 
-The DCS-BIOS Easy Mode library is available here:
+The DCS-BIOS Easy Mode library releases are available here:
 
-https://github.com/WotUpFoo/dcs-bios-arduino-easymode
+https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases
 
 The companion reference and code-snippet tool for this library is Bort-EasyMode:
 
-https://github.com/WotUpFoo/Bort-EasyMode
+https://github.com/wotupfoo/Bort-EasyMode/releases
 
 Do not use the Skunkworks version of Bort with this Easy Mode workflow. Use Bort-EasyMode instead.
 
@@ -32,6 +32,7 @@ If you want the upstream project details, background, and broader DCS-BIOS infor
 - Original DCS-BIOS project: https://github.com/dcs-bios/dcs-bios
 - DCS Flightpanels project: https://github.com/DCSFlightpanels
 - DCS-BIOS Arduino library wiki: https://github.com/DCSFlightpanels/dcs-bios-arduino-library/wiki
+- DCS-BIOS Skunkworks releases: https://github.com/DCS-Skunkworks/dcs-bios/releases
 
 ## Support And Documentation
 

@@ -27,7 +27,7 @@
 // AIR SPEED INDICATOR (ASI)
 // *****************************************************************************
 DcsBios::EasyMode::Stepper_28BYJ48 airspeedgauge(
-    SpitfireLFMkIX_AIRSPEEDGAUGE, // Telemetry source
+    Mosquito_AIRSPEED_G_A,        // Telemetry source
     AIRSPEED_STEPPER_PIN1,        // Arduino pin connected to the stepper driver input pin 1
     AIRSPEED_STEPPER_PIN2,        // Arduino pin connected to the stepper driver input pin 2
     AIRSPEED_STEPPER_PIN3,        // Arduino pin connected to the stepper driver input pin 3
@@ -40,22 +40,22 @@ DcsBios::EasyMode::Stepper_28BYJ48 airspeedgauge(
 // ARTIFICIAL HORIZON BANK & PITCH
 // ******************************************************************************
 DcsBios::EasyMode::Servo_SG90 ahorizonbank(
-    SpitfireLFMkIX_AHORIZONBANK_A, // Telemetry source
+    Mosquito_AHORIZON_BANK_G_A, // Telemetry source
     AHORIZON_BANK_SERVO_PIN       // Arduino pin connected to the servo signal wire
 );
 
 DcsBios::EasyMode::Servo_SG90 ahorizonpitch(
-    SpitfireLFMkIX_AHORIZONPITCH_A, // Telemetry source
+    Mosquito_AHORIZON_PITCH_G_A, // Telemetry source
     AHORIZON_PITCH_SERVO_PIN       // Arduino pin connected to the servo signal wire
 );
 
 // ******************************************************************************
 // RATE OF CLIMB INDICATOR
 // 
-// Developer note: DCS-BIOS doesn't have a Rate of Climb telemetry source. 
-// So, we have to create it by watching the Altitude and calculating the rate of 
-// change over time. Once calculated we can update the stepper position based on 
-// the rate of climb/fall.
+// Developer note: DCS-BIOS doesn't have a Rate of Climb telemetry source.
+// So, we create it by watching CommonData_ALT_MSL_FT and calculating the rate
+// of change over time. Once calculated we can update the stepper position based
+// on the rate of climb/fall.
 // ******************************************************************************
 unsigned int PreviousAltitude = 0;          // Previous altitude reading for ROC calculation
 unsigned long LastRocUpdateMs = 0;          // Timestamp of last ROC update (2Hz = 500ms interval)
@@ -98,6 +98,11 @@ void updateRateOfClimbStepper(unsigned int altitudeFt) {
     LastRocUpdateMs = nowMs;
 }
 
+void onCommonAltitudeChange(unsigned int newValue) {
+    updateRateOfClimbStepper(newValue);
+}
+DcsBios::IntegerBuffer commonAltitudeBuffer(CommonData_ALT_MSL_FT, onCommonAltitudeChange);
+
 // ******************************************************************************
 // ALTIMETER (with special handling for all 3 needles on one stepper)
 // Rotary Knob mechanically moves the Barometer scale. Push to Zero.
@@ -119,33 +124,6 @@ unsigned int AltimeterHundreds = 0;         // Storage of the 100's of feet need
 unsigned int AltimeterThousands = 0;        // Storage of the 1,000's of feet needle position received from DCS-BIOS
 unsigned int AltimeterTenThousands = 0;     // Storage of the 10,000's of feet needle position received from DCS-BIOS
 
-// ALTIMETER Hundreds of Feet Needle
-void onAltimeterhundredsChange(unsigned int newValue) {
-    AltimeterHundreds = newValue;
-    Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
-    altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
-    updateRateOfClimbStepper(Altitude);
-}
-DcsBios::IntegerBuffer altimeterhundredsBuffer(SpitfireLFMkIX_ALTIMETERHUNDREDS, onAltimeterhundredsChange);
-
-// ALTIMETER Thousands of Feet Needle
-void onAltimeterthousandsChange(unsigned int newValue) {
-    AltimeterThousands = newValue;
-    Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
-    altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
-    updateRateOfClimbStepper(Altitude);
-}
-DcsBios::IntegerBuffer altimeterthousandsBuffer(SpitfireLFMkIX_ALTIMETERTHOUSANDS, onAltimeterthousandsChange);
-
-// ALTIMETER Ten's of Thousands of Feet Needle
-void onAltimetertensthousandsChange(unsigned int newValue) {
-    AltimeterTenThousands = newValue;
-    Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
-    altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
-    updateRateOfClimbStepper(Altitude);
-}
-DcsBios::IntegerBuffer altimetertensthousandsBuffer(SpitfireLFMkIX_ALTIMETERTENSTHOUSANDS, onAltimetertensthousandsChange);
-
 DcsBios::EasyMode::Stepper_Manual_28BYJ48 altimeter3NeedleStepper(
     ALTIMETER_STEPPER_PIN1,    // Arduino pin connected to the stepper driver input pin 1
     ALTIMETER_STEPPER_PIN2,    // Arduino pin connected to the stepper driver input pin 2
@@ -154,11 +132,36 @@ DcsBios::EasyMode::Stepper_Manual_28BYJ48 altimeter3NeedleStepper(
     ALTIMETER_ZERO_PIN,        // Zero angle detection input pin
     false                      // inputZeroCentered: false because 0 ft is at 0 degrees
 );
+
+// ALTIMETER Hundreds of Feet Needle
+void onAltimeterhundredsChange(unsigned int newValue) {
+    AltimeterHundreds = newValue;
+    Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
+    altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
+}
+DcsBios::IntegerBuffer altimeterhundredsBuffer(SpitfireLFMkIX_ALTIMETERHUNDREDS, onAltimeterhundredsChange);
+
+// ALTIMETER Thousands of Feet Needle
+void onAltimeterthousandsChange(unsigned int newValue) {
+    AltimeterThousands = newValue;
+    Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
+    altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
+}
+DcsBios::IntegerBuffer altimeterthousandsBuffer(SpitfireLFMkIX_ALTIMETERTHOUSANDS, onAltimeterthousandsChange);
+
+// ALTIMETER Ten's of Thousands of Feet Needle
+void onAltimetertensthousandsChange(unsigned int newValue) {
+    AltimeterTenThousands = newValue;
+    Altitude = AltimeterHundreds + (AltimeterThousands * 1000) + (AltimeterTenThousands * 10000);
+    altimeter3NeedleStepper.setPosition(Altitude); // Update the stepper position immediately on change
+}
+DcsBios::IntegerBuffer altimetertensthousandsBuffer(SpitfireLFMkIX_ALTIMETERTENSTHOUSANDS, onAltimetertensthousandsChange);
+
 // *******************************************************************************
 // GYROSCOPIC DIRECTIONAL INDICATOR (DI) with adjustment rotary encoder
 // *******************************************************************************
 DcsBios::EasyMode::Stepper_28BYJ48 DIStepper(
-    SpitfireLFMkIX_DIGAUGE_A, // Telemetry source
+    Mosquito_DI_G_A,          // Telemetry source
     DI_STEPPER_PIN1,          // Arduino pin connected to the stepper driver input pin 1
     DI_STEPPER_PIN2,          // Arduino pin connected to the stepper driver input pin 2
     DI_STEPPER_PIN3,          // Arduino pin connected to the stepper driver input pin 3
@@ -171,11 +174,11 @@ DcsBios::EasyMode::Stepper_28BYJ48 DIStepper(
 // SIDE SLIP GAUGE & TURN GAUGE
 // *******************************************************************************
 DcsBios::EasyMode::Servo_SG90 sideslipgauge(
-    SpitfireLFMkIX_SIDESLIPGAUGE_A, // Telemetry source: altitude above mean sea level in feet
+    Mosquito_SIDESLIP_G_A, // Telemetry source: altitude above mean sea level in feet
     SIDESLIP_SERVO_PIN             // Arduino pin connected to the servo signal wire
 );
 DcsBios::EasyMode::Servo_SG90 turngauge(
-    SpitfireLFMkIX_TURNGAUGE_A, // Telemetry source: altitude above mean sea level in feet
+    Mosquito_TURN_G_A, // Telemetry source: altitude above mean sea level in feet
     TURN_SERVO_PIN             // Arduino pin connected to the servo signal wire
 );
 

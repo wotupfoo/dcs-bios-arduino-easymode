@@ -6,7 +6,7 @@
  * altimeter telemetry output.
  *
  * If you are using a 28BYJ-48 on a ULN2003 board, see
- * Altimeter_EasyStepper_28BYJ48 for the shorter copy-paste constructor form.
+ * 1_Altimeter for the shorter copy-paste 28BYJ-48 journey version.
  */
 
 /*

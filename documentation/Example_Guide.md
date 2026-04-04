@@ -2,6 +2,26 @@
 
 This guide is written for builders who may have little or no software experience.
 
+This hobby is about making physically accurate and functional reproductions of aircraft cockpits to use inside [flight simulator](https://en.wikipedia.org/wiki/Flight_simulator) environments, [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/) being the simulator in this guide.
+
+Leveraging the embedded electronics hobby ecosystem, switches, knobs, LEDs, and other input devices can control the simulated cockpit inside the game.
+
+Likewise, things that move in the simulator, like gauge needles, can be made into functional reproductions of the real aircraft instruments using commonly available and inexpensive RC servo motors and tiny stepper motors like the ones often used to move needles in automotive dashboards.
+
+The software pieces each do a different job:
+
+- DCS World is the flight simulator.
+- DCS-BIOS ([Basic Input/Output System](https://en.wikipedia.org/wiki/BIOS)) is the bridge that exposes cockpit data and accepts cockpit commands.
+- DCS-BIOS Easy Mode makes the Arduino code much simpler and easier to copy, paste, and understand.
+- Bort-EasyMode is a Windows companion app and live reference tool that helps the hobbyist find the information needed to implement a particular simulated item, like a gauge (output) or switch (input), in an Arduino application ("sketch") that is built and uploaded to an Arduino development board.
+
+DCS-BIOS and this user-friendly version, DCS-BIOS Easy Mode, fuse the flight simulation hobby with the DIY electronics and Arduino software hobby to help create a [simulation cockpit](https://en.wikipedia.org/wiki/Simulation_cockpit).
+
+Two words appear a lot in Arduino projects:
+
+- Arduino: a small microcontroller board that can read switches, drive LEDs, and control small motors or servos.
+- Sketch: the Arduino name for the program you write and upload to the board.
+
 The goal is simple:
 
 1. Install the software you need.
@@ -10,13 +30,23 @@ The goal is simple:
 4. Copy and paste it into the blank sketch.
 5. Make only a few small changes for your own hardware.
 
+The examples in this guide are arranged as a learning path:
+
+- Start with a very simple sketch.
+- Move on to a one-way gauge.
+- Then a centered-zero gauge.
+- Then a more advanced derived gauge.
+- And finally full aircraft panel examples.
+
+If some of these words are new to you, that is normal. The point of this guide is to explain the workflow in the most accessible language possible.
+
 This document is also intended to become a release handout later, so photo placeholders have been included where useful.
 
 ## What These Tools Do
 
 Before starting, it helps to know what each tool is for.
 
-### Arduino IDE
+### Arduino IDE (Integrated Development Environment)
 
 This is the program used to open, edit, and upload Arduino sketches to your board.
 
@@ -54,40 +84,50 @@ Bort-EasyMode is the Easy Mode version of Bort, the DCS-BIOS reference and code-
 
 You use Bort-EasyMode to:
 
-- look up the telemetry name you want
-- see live values
-- choose a code snippet for your hardware
-- copy that snippet into Arduino IDE
+- Look up the telemetry name you want.
+- See live values.
+- Choose a code snippet for your hardware.
+- Copy that snippet into Arduino IDE.
 
 ## What You Need Installed
 
-For a first Easy Mode project, install these four things:
+For a first Easy Mode project, install these five things:
 
-1. Arduino IDE
-2. DCS World
-3. DCS-BIOS Skunkworks
-4. Bort-EasyMode
-
-You will also need the `DCS-BIOS Easy Mode` Arduino library available inside Arduino IDE.
+1. [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/)
+2. [Arduino IDE](https://www.arduino.cc/en/software/)
+3. [DCS-BIOS Easy Mode Arduino library](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases)
+4. [Bort-EasyMode](https://github.com/wotupfoo/Bort-EasyMode/releases)
+5. [DCS-BIOS Skunkworks](https://github.com/DCS-Skunkworks/dcs-bios/releases)
 
 ## Suggested Beginner Workflow
 
 If you are new, follow this order:
 
-1. Install Arduino IDE.
-2. Install DCS-BIOS Skunkworks so DCS can export telemetry.
-3. Install Bort-EasyMode.
-4. Install the Arduino libraries.
-5. Open the blank Easy Mode sketch.
-6. Open Bort-EasyMode and find a telemetry item.
-7. Copy one snippet.
-8. Paste it into the blank sketch.
-9. Change only pins and any obvious instrument settings.
-10. Upload to the Arduino board.
+1. Install DCS World.
+2. Install Arduino IDE.
+3. Install the Arduino libraries.
+4. Install Bort-EasyMode.
+5. Install DCS-BIOS Skunkworks so DCS can export telemetry.
+6. Open the blank Easy Mode sketch.
+7. Open Bort-EasyMode and find a telemetry item.
+8. Copy one snippet.
+9. Paste it into the blank sketch.
+10. Change only pins and any obvious instrument settings.
+11. Upload to the Arduino board.
 
-## Step 1: Install Arduino IDE
+## Step 1: Install DCS World
 
-Install Arduino IDE the normal way for your computer.
+Install DCS World the normal way for your computer:
+
+https://www.digitalcombatsimulator.com/en/downloads/world/
+
+If DCS World is not installed yet, it is better to do that first so the rest of the toolchain has a real simulator to connect to later.
+
+## Step 2: Install Arduino IDE
+
+Install Arduino IDE the normal way for your computer:
+
+https://www.arduino.cc/en/software/
 
 When it opens for the first time:
 
@@ -101,7 +141,55 @@ Photo placeholder:
 
 - Add screenshot of Arduino IDE with board and COM port selected.
 
-## Step 2: Install DCS-BIOS Skunkworks
+## Step 3: Install The Arduino Libraries
+
+You need the Arduino side of DCS-BIOS and the Easy Mode library available inside Arduino IDE.
+
+The Easy Mode library for this guide comes from:
+
+`https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases`
+
+For a beginner, the easiest mental model is:
+
+- one library handles DCS-BIOS communication
+- one library adds the Easy Mode shortcuts and examples
+
+If these libraries are provided as ZIP files:
+
+1. Open Arduino IDE
+2. Choose `Sketch > Include Library > Add .ZIP Library...`
+3. Add the DCS-BIOS Arduino library ZIP
+4. Add the DCS-BIOS Easy Mode library ZIP
+
+After installation, Arduino IDE should be able to open the example sketches from the `File > Examples` menu.
+
+Photo placeholder:
+
+- Add screenshot of `Add .ZIP Library...`
+
+## Step 4: Install Bort-EasyMode
+
+Install the DCS-BIOS Easy Mode version of Bort from:
+
+https://github.com/wotupfoo/Bort-EasyMode/releases
+
+Then run Bort-EasyMode.
+
+When Bort-EasyMode first opens, it may need to be pointed at the DCS-BIOS JSON folder.
+
+If that happens:
+
+1. Open the `Menu`
+2. Choose `Select dcs-bios location`
+3. Point it to the DCS-BIOS JSON folder
+
+Bort-EasyMode is mainly used as a lookup and copy-paste tool. Think of it as the parts catalog and code generator for the project.
+
+Photo placeholder:
+
+- Add screenshot of Bort-EasyMode showing a selected telemetry item and its code snippets.
+
+## Step 5: Install DCS-BIOS Skunkworks
 
 DCS-BIOS Skunkworks is what makes DCS telemetry available outside the simulator.
 
@@ -127,59 +215,11 @@ Photo placeholder:
 
 - Add screenshot of the DCS-BIOS folder in Saved Games.
 
-## Step 3: Install Bort-EasyMode
-
-Install the DCS-BIOS Easy Mode version of Bort from:
-
-`https://github.com/WotUpFoo/Bort-EasyMode`
-
-Then run Bort-EasyMode.
-
-When Bort-EasyMode first opens, it may need to be pointed at the DCS-BIOS JSON folder.
-
-If that happens:
-
-1. Open the `Menu`
-2. Choose `Select dcs-bios location`
-3. Point it to the DCS-BIOS JSON folder
-
-Bort-EasyMode is mainly used as a lookup and copy-paste tool. Think of it as the parts catalog and code generator for the project.
-
-Photo placeholder:
-
-- Add screenshot of Bort-EasyMode showing a selected telemetry item and its code snippets.
-
-## Step 4: Install The Arduino Libraries
-
-You need the Arduino side of DCS-BIOS and the Easy Mode library available inside Arduino IDE.
-
-The Easy Mode library for this guide comes from:
-
-`https://github.com/WotUpFoo/dcs-bios-arduino-easymode`
-
-For a beginner, the easiest mental model is:
-
-- one library handles DCS-BIOS communication
-- one library adds the Easy Mode shortcuts and examples
-
-If these libraries are provided as ZIP files:
-
-1. Open Arduino IDE
-2. Choose `Sketch > Include Library > Add .ZIP Library...`
-3. Add the DCS-BIOS Arduino library ZIP
-4. Add the DCS-BIOS Easy Mode library ZIP
-
-After installation, Arduino IDE should be able to open the example sketches from the `File > Examples` menu.
-
-Photo placeholder:
-
-- Add screenshot of `Add .ZIP Library...`
-
 ## Step 5: Open The Blank Starting Sketch
 
 A blank starting sketch has been included for beginners:
 
-`examples/Blank_EasyMode_Start/Blank_EasyMode_Start.ino`
+`examples/0_DefaultSerial/0_DefaultSerial.ino`
 
 This is the recommended first file to open when building from a Bort-EasyMode snippet.
 
@@ -286,10 +326,10 @@ That is the basic pattern for most Easy Mode builds.
 
 The example sketches in this library are not just random demos. Each one is meant to answer a common beginner question.
 
-### Blank_EasyMode_Start
+### 0_DefaultSerial
 
 File:
-`examples/Blank_EasyMode_Start/Blank_EasyMode_Start.ino`
+`examples/0_DefaultSerial/0_DefaultSerial.ino`
 
 What it is:
 
@@ -366,10 +406,10 @@ Photo placeholder:
 
 - Add photo of an SG90 or MG90 mounted behind an instrument face.
 
-### Altimeter_EasyStepper
+### 1_Altimeter
 
 File:
-`examples/Altimeter_EasyStepper/Altimeter_EasyStepper.ino`
+`examples/1_Altimeter/1_Altimeter.ino`
 
 What it is:
 
@@ -397,10 +437,10 @@ Photo placeholder:
 
 - Add photo of a generic stepper and driver board connected to an altimeter dial.
 
-### Altimeter_EasyStepper_28BYJ48
+### 91_Altimeter_EasyStepper
 
 File:
-`examples/Altimeter_EasyStepper_28BYJ48/Altimeter_EasyStepper_28BYJ48.ino`
+`examples/91_Altimeter_EasyStepper/91_Altimeter_EasyStepper.ino`
 
 What it is:
 
@@ -422,10 +462,10 @@ Photo placeholder:
 
 - Add photo of a 28BYJ-48 and ULN2003 board driving an altimeter dial.
 
-### Compass_Heading_EasyStepper
+### 4_Compass_Heading
 
 File:
-`examples/Compass_Heading_EasyStepper/Compass_Heading_EasyStepper.ino`
+`examples/4_Compass_Heading/4_Compass_Heading.ino`
 
 What it is:
 
@@ -452,10 +492,10 @@ Photo placeholder:
 
 - Add photo of a compass or heading repeater driven by a generic stepper.
 
-### Compass_Heading_EasyStepper_28BYJ48
+### 92_Compass_Heading
 
 File:
-`examples/Compass_Heading_EasyStepper_28BYJ48/Compass_Heading_EasyStepper_28BYJ48.ino`
+`examples/92_Compass_Heading/92_Compass_Heading.ino`
 
 What it is:
 
@@ -477,15 +517,15 @@ Photo placeholder:
 
 - Add photo of a 28BYJ-48 turning a compass card or heading pointer.
 
-### Bank_Angle_EasyStepper
+### 2_Pitch_EasyServo
 
 File:
-`examples/Bank_Angle_EasyStepper/Bank_Angle_EasyStepper.ino`
+`examples/2_Pitch_EasyServo/2_Pitch_EasyServo.ino`
 
 What it is:
 
-- A centered-zero generic stepper example.
-- A good first example for signals that move left and right around a center mark.
+- A centered-zero SG90 servo example using pitch.
+- A good first example for signals that move up and down around a center mark.
 
 Use it when:
 
@@ -494,8 +534,7 @@ Use it when:
 
 Usually changed by the user:
 
-- motor pins
-- zero detection pin
+- servo pin
 - instrument sweep angles
 - direction
 
@@ -505,32 +544,46 @@ Important idea:
 
 Photo placeholder:
 
-- Add photo of a left-right bank angle gauge with a center mark.
+- Add photo of a nose-up nose-down pitch gauge with a center mark.
 
-### Bank_Angle_EasyStepper_28BYJ48
+### 3_Rate_Of_Climb_from_Altitude_EasyServo
 
 File:
-`examples/Bank_Angle_EasyStepper_28BYJ48/Bank_Angle_EasyStepper_28BYJ48.ino`
+`examples/3_Rate_Of_Climb_from_Altitude_EasyServo/3_Rate_Of_Climb_from_Altitude_EasyServo.ino`
 
 What it is:
 
-- The same centered-zero bank idea as the generic bank example, but using a 28BYJ-48 stepper.
+- An advanced SG90 servo example that creates rate of climb from altitude changes.
+- A natural next step after `2_Pitch_EasyServo`.
 
 Use it when:
 
-- You have a 28BYJ-48 stepper
-- You want a centered-zero left-right style gauge
+- Your aircraft does not expose a direct VVI / variometer output
+- You still want to drive a rate-of-climb gauge
 
 Usually changed by the user:
 
-- motor pins
-- zero detection pin
+- servo pin
+- the update interval
+- the assumed climb/descent range
 - instrument sweep angles
-- direction
+
+Important idea:
+
+- This example uses `CommonData_ALT_MSL_FT` and calculates feet per minute in the sketch.
 
 Photo placeholder:
 
-- Add photo of a centered-zero bank gauge using a 28BYJ-48 and ULN2003 board.
+- Add photo of a derived rate-of-climb gauge driven from altitude metadata.
+
+## Suggested Learning Path
+
+For a natural progression through the examples:
+
+- Start with `1_Altimeter` to learn a simple one-way gauge.
+- Move to `2_Pitch_EasyServo` to learn centered-zero gauges.
+- Then try `3_Rate_Of_Climb_from_Altitude_EasyServo` to learn how to derive a gauge value from other telemetry.
+- Continue with `4_Compass_Heading`, then the full blind-panel examples.
 
 ## Which Example Should I Start With?
 
@@ -538,11 +591,12 @@ If you have:
 
 - an SG90 or MG90 servo: start with `Altimeter_EasyServo_SG90`
 - another hobby servo: start with `Altimeter_EasyServo`
-- a generic 4-wire stepper and a one-way gauge: start with `Altimeter_EasyStepper`
-- a 28BYJ-48 stepper and a one-way gauge: start with `Altimeter_EasyStepper_28BYJ48`
+- a 28BYJ-48 stepper and a one-way gauge: start with `1_Altimeter`
+- a generic 4-wire stepper and a one-way gauge: start with `91_Altimeter_EasyStepper`
 - a repeating 360 degree gauge: start with one of the `Compass_Heading_*` examples
-- a centered-zero gauge: start with one of the `Bank_Angle_*` examples
-- no idea where to start and you just want to paste from Bort: start with `Blank_EasyMode_Start`
+- a centered-zero gauge: start with `2_Pitch_EasyServo`
+- a derived vertical-speed gauge: start with `3_Rate_Of_Climb_from_Altitude_EasyServo`
+- no idea where to start and you just want to paste from Bort: start with `0_DefaultSerial`
 
 ## Common Beginner Mistakes
 
@@ -605,3 +659,6 @@ An important part of that work was research. The AI was able to study the surrou
 That same collaboration also helped identify a broader design problem: DCS-BIOS and Bort were powerful tools, but they often assumed more software knowledge than many builders have or want to have. Many users are strong in aircraft systems, electronics, and physical fabrication, but may not be comfortable with programming language, software abstractions, or reading raw code. A major goal of this project was therefore to reduce that barrier and reshape the experience so it felt more welcoming to non-programmers.
 
 With that goal in mind, the AI helped reshape both the code and the user experience. It contributed to the design and implementation of DCS-BIOS Easy Mode, created example sketches based on real DCS World telemetry, modified Bort so its generated snippets were easier to understand and copy into Arduino IDE, and helped produce beginner-friendly instructions for installing and using the whole toolchain. The result is not only a set of software changes, but also a more accessible workflow for people who want to build virtual cockpit hardware without needing to think like professional software developers.
+
+
+
