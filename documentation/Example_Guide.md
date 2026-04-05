@@ -1,28 +1,70 @@
 # DCS-BIOS Easy Mode Beginner Guide
 
-This guide is written for builders who may have little or no software experience.
+![](images/dcs-bios-icon.png)
 
-This hobby is about making physically accurate and functional reproductions of aircraft cockpits to use inside [flight simulator](https://en.wikipedia.org/wiki/Flight_simulator) environments, [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/) being the simulator in this guide.
+## What's This Project All About?
+
+This project is about the hobby of building Do-It-Yourself (DIY) aircraft flight simulator cockpits.
+Instead of using only a mouse, keyboard, or game controller, many flight simulator hobbyists build physical cockpit controls so the simulator can be operated in a way that feels closer to the real aircraft. That can include things like switches, knobs, warning lights, gauge needles, radio panels, and complete instrument panels.
+
+### Examples of "Sim-Pits"
+Spitfire and other British "Warbirds" from WW1 and WWII are availble from the [AuthentiKit](https://authentikit.org/) project which makes available 3D printable controls that you can print on your own 3D printer and assemble with commonly available embedded electronics and other parts.
+
+[![Watch on YouTube](https://img.youtube.com/vi/ZDpGcKiBXVw/hqdefault.jpg)](https://www.youtube.com/watch?v=ZDpGcKiBXVw)
+
+Another example is from [YouTuber: The Warthog Project](https://www.youtube.com/@thewarthogproject) where he has created a complete A-10C cockpit using DCS-BIOS and other tools.
+![](images/The-Warthog-Project-sml.png)
+
+On his YouTube channel and [website "The Warthog Project - Building a Home Flight Simulator"](https://thewarthogproject.com/) he gives all the CAD assets and steps required to make your own A-10C cockpit controls and displays.
+
+# The Flight Simulator
+## DCS World - Digital Combat Simulator: World
+![](images/DCS-sml.jpg)
+
+In this guide, the simulator is [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/). 
+The goal is to connect physical cockpit hardware to DCS so that:
+
+- moving a real switch changes something in the simulator
+
+![](images/Switch2Pos-Physical.png) ![](images/Switch2Pos-DCS.png)
+
+- turning a real knob adjusts something in the simulator
+
+![](images/RotaryEncoder-Physical.png) ![](images/RotaryEncoder-DCS.png)
+
+- lights, gauges, and indicators in the simulator can be reproduced with real hardware on your desk or in a cockpit build
+
+# ***INSERT SG90 and 28BY Steppers info and photos***
+
+### This sits at the intersection of several hobbies:
+
+- flight simulation
+- DIY electronics
+- Arduino and embedded programming
+- scale cockpit building
+
+
+This hobby can be entered into from very simple controls and expanded to a full cockpit with hundreds of elements including monitors. Enthusists aim to make physically accurate and functional reproductions of aircraft cockpits to use inside [flight simulator](https://en.wikipedia.org/wiki/Flight_simulator) environments, [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/) being the simulator in this guide.
 
 Leveraging the embedded electronics hobby ecosystem, switches, knobs, LEDs, and other input devices can control the simulated cockpit inside the game.
 
 Likewise, things that move in the simulator, like gauge needles, can be made into functional reproductions of the real aircraft instruments using commonly available and inexpensive RC servo motors and tiny stepper motors like the ones often used to move needles in automotive dashboards.
 
-The software pieces each do a different job:
+## The software pieces each do a different job:
 
-- DCS World is the flight simulator.
-- DCS-BIOS ([Basic Input/Output System](https://en.wikipedia.org/wiki/BIOS)) is the bridge that exposes cockpit data and accepts cockpit commands.
-- DCS-BIOS Easy Mode makes the Arduino code much simpler and easier to copy, paste, and understand.
-- Bort-EasyMode is a Windows companion app and live reference tool that helps the hobbyist find the information needed to implement a particular simulated item, like a gauge (output) or switch (input), in an Arduino application ("sketch") that is built and uploaded to an Arduino development board.
+- **DCS: World** (Digital Combat Simulator by Eagle Dynamics) is the flight simulator.
+- **DCS-BIOS** ([DCS - Basic Input/Output System](https://en.wikipedia.org/wiki/BIOS)) is the bridge that exposes cockpit data and accepts cockpit commands.
+- **DCS-BIOS Easy Mode** makes the Arduino code much simpler and easier to copy, paste, and understand.
+- **Bort-EasyMode** is a Windows companion app and live reference tool that helps the hobbyist find the information needed to implement a particular simulated item, like a gauge (output) or switch (input), in an Arduino application ("sketch") that is built and uploaded to an Arduino development board.
 
-DCS-BIOS and this user-friendly version, DCS-BIOS Easy Mode, fuse the flight simulation hobby with the DIY electronics and Arduino software hobby to help create a [simulation cockpit](https://en.wikipedia.org/wiki/Simulation_cockpit).
+DCS-BIOS and this user-friendly version, **DCS-BIOS Easy Mode**, fuse the flight simulation hobby with the DIY electronics and Arduino software hobby to help create a [simulation cockpit](https://en.wikipedia.org/wiki/Simulation_cockpit).
 
-Two words appear a lot in Arduino projects:
+# Two words appear a lot in Arduino projects:
 
-- Arduino: a small microcontroller board that can read switches, drive LEDs, and control small motors or servos.
-- Sketch: the Arduino name for the program you write and upload to the board.
+- **Arduino**: a small microcontroller board that can read switches, drive LEDs, and control small motors or servos.
+- **Sketch**: the Arduino name for the program you write and upload to the board.
 
-The goal is simple:
+### The goal is simple:
 
 1. Install the software you need.
 2. Open a blank Arduino sketch.
@@ -30,7 +72,7 @@ The goal is simple:
 4. Copy and paste it into the blank sketch.
 5. Make only a few small changes for your own hardware.
 
-The examples in this guide are arranged as a learning path:
+### The examples in this guide are arranged as a learning path:
 
 - Start with a very simple sketch.
 - Move on to a one-way gauge.
@@ -42,17 +84,26 @@ If some of these words are new to you, that is normal. The point of this guide i
 
 This document is also intended to become a release handout later, so photo placeholders have been included where useful.
 
-## What These Tools Do
+# What These Tools Do
 
 Before starting, it helps to know what each tool is for.
 
-### Arduino IDE (Integrated Development Environment)
+## Arduino IDE (Integrated Development Environment)
 
-This is the program used to open, edit, and upload Arduino sketches to your board.
+This is the program used to open, edit, and upload Arduino "sketches" to your board.
 
-### DCS-BIOS Skunkworks
+"Sketches" are the programs written to run on the Arduino Embedded Electronics board.
+
+Secretly, these "Sketches" are actually C++ (pronounced "see plus plus") programs with many Classes (programs inside programs) behind the scenes creating a "toolbox of tools" that you can use instead of having to develop youself. Everything from WiFi and Blutooth to controlling motors and displays. The Arduino ecosystem makes Embedded Electronics programming accessible to millions of users like yourself without the need to be a great C++ programmer. Better still, it has an open plugin "Library" where projects such as this one can be added to extend what Arduino is already capable of.
+
+![](images/Arduino/Arduino-IDE_med.png)
+
+## DCS-BIOS Skunkworks
 
 This is the part that reads information from DCS World and makes that information available to external hardware projects.
+Before DCS-BIOS Skunkworks there was a DCS-BIOS. Skunkworks took over many years for reasons not relevant here. The important thing to note is that this project sits on top of the **Skunkworks** version, not the Original DCS-BIOS.
+
+![](images/DCS-BIOS-Skunkworks.png)
 
 Examples:
 
@@ -62,13 +113,18 @@ Examples:
 - switch positions
 - warning lights
 
-### DCS-BIOS Easy Mode
+**DCS-BIOS Skunkwork Releases:** `https://github.com/DCS-Skunkworks/dcs-bios/releases`
 
-This library sits on top of DCS-BIOS and tries to make the code read more like real instrument setup.
+
+## DCS-BIOS Easy Mode
+
+This project addresses a big problem with DCS-BIOS (Original and Skunkworks). They express the connections in terms of highly technical numbers instead of being in terms of what the physical control is doing. A Pitch Gauge for example, needs to be expressed in terms of how many degrees the needle needs to deflect up and down and that the zero position is in the middle. **DCS-BIOS Easy Mode** makes the setup parameters of these interfaces into the information that a real sim-pit builder thinks about.
+
+**NOTE: This library sits on top of DCS-BIOS, it does not replace it.**
 
 The DCS-BIOS Easy Mode library used in this guide comes from:
 
-`https://github.com/WotUpFoo/dcs-bios-arduino-easymode`
+**DCS-BIOS Easy Mode Releases:** `https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases`
 
 Instead of thinking in low-level pulse widths or motor internals, the idea is to think in terms such as:
 
@@ -78,7 +134,7 @@ Instead of thinking in low-level pulse widths or motor internals, the idea is to
 - clockwise or counter-clockwise
 - zero at one end or zero in the middle
 
-### Bort-EasyMode
+## Bort-EasyMode
 
 Bort-EasyMode is the Easy Mode version of Bort, the DCS-BIOS reference and code-snippet tool.
 
@@ -91,13 +147,13 @@ You use Bort-EasyMode to:
 
 ## What You Need Installed
 
-For a first Easy Mode project, install these five things:
+For your first DCS-BIOS Easy Mode project, install these five things in this order:
 
 1. [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/)
 2. [Arduino IDE](https://www.arduino.cc/en/software/)
-3. [DCS-BIOS Easy Mode Arduino library](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases)
-4. [Bort-EasyMode](https://github.com/wotupfoo/Bort-EasyMode/releases)
-5. [DCS-BIOS Skunkworks](https://github.com/DCS-Skunkworks/dcs-bios/releases)
+3. [DCS-BIOS Skunkworks](https://github.com/DCS-Skunkworks/dcs-bios/releases)
+4. [DCS-BIOS Easy Mode Arduino library](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases)
+5. [Bort-EasyMode](https://github.com/wotupfoo/Bort-EasyMode/releases)
 
 ## Suggested Beginner Workflow
 
@@ -105,21 +161,30 @@ If you are new, follow this order:
 
 1. Install DCS World.
 2. Install Arduino IDE.
-3. Install the Arduino libraries.
-4. Install Bort-EasyMode.
-5. Install DCS-BIOS Skunkworks so DCS can export telemetry.
-6. Open the blank Easy Mode sketch.
-7. Open Bort-EasyMode and find a telemetry item.
-8. Copy one snippet.
-9. Paste it into the blank sketch.
-10. Change only pins and any obvious instrument settings.
-11. Upload to the Arduino board.
+3. Install DCS-BIOS from Skunkworks into Arduino IDE.
+4. Install DCS-BIOS Easy Mode into Arduino IDE.
+5. Install Bort-EasyMode.
+6. Install DCS-BIOS Skunkworks so DCS can export telemetry.
+7. Open `0_DefaultSerial`.
+8. Build and upload `0_DefaultSerial` once.
+9. Open `1_Altimeter`.
+10. Open `2_Pitch_EasyServo`.
+11. Open `3_Rate_Of_Climb_from_Altitude_EasyServo`.
+12. Open `4_Compass_Heading`.
+13. Study `5_Spitfire_Blind_Panel`.
+14. Study `6_Mosquito_Blind_Panel`.
+15. Study `7_Mosquito_Fuel_Panel`.
+16. Return to `0_DefaultSerial` for your own project.
+17. Start DCS World and open Bort-EasyMode.
+18. Copy the snippet you want from Bort-EasyMode.
+19. Paste it into `0_DefaultSerial` and change only the first few things.
+20. Build and upload your own sketch.
 
 ## Step 1: Install DCS World
 
 Install DCS World the normal way for your computer:
 
-https://www.digitalcombatsimulator.com/en/downloads/world/
+[Download DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/)
 
 If DCS World is not installed yet, it is better to do that first so the rest of the toolchain has a real simulator to connect to later.
 
@@ -127,7 +192,7 @@ If DCS World is not installed yet, it is better to do that first so the rest of 
 
 Install Arduino IDE the normal way for your computer:
 
-https://www.arduino.cc/en/software/
+[Download Arduino IDE](https://www.arduino.cc/en/software/)
 
 When it opens for the first time:
 
@@ -135,43 +200,47 @@ When it opens for the first time:
 2. Choose your board from the `Tools` menu.
 3. Choose the correct COM port from the `Tools` menu.
 
+![](images/Arduino/Arduino-COM-Port-med.png)
+
 If upload fails later, the most common cause is the wrong board or wrong COM port being selected.
 
-Photo placeholder:
 
-- Add screenshot of Arduino IDE with board and COM port selected.
 
-## Step 3: Install The Arduino Libraries
+## Step 3: Install DCS-BIOS From Skunkworks Into Arduino IDE
 
-You need the Arduino side of DCS-BIOS and the Easy Mode library available inside Arduino IDE.
+You need the Arduino side of DCS-BIOS available inside Arduino IDE.
 
-The Easy Mode library for this guide comes from:
+Get the ZIP file from the [DCS-BIOS Skunkworks releases](https://github.com/DCS-Skunkworks/dcs-bios/releases).
 
-`https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases`
+If it is provided as a ZIP file:
+
+1. Open Arduino IDE.
+2. Choose `Sketch > Include Library > Add .ZIP Library...`.
+3. Add the DCS-BIOS Arduino library ZIP.
+
+## Step 4: Install DCS-BIOS Easy Mode Into Arduino IDE
+
+You also need the DCS-BIOS Easy Mode Arduino library available inside Arduino IDE.
+
+Get the ZIP file from the [DCS-BIOS Easy Mode releases](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases).
 
 For a beginner, the easiest mental model is:
 
-- one library handles DCS-BIOS communication
-- one library adds the Easy Mode shortcuts and examples
+- one library (DCS-BIOS Skunkworks) handles the communication from the board to and from DCS.
+- one library (DCS-BIOS Easy Mode) makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS Skunkworks lacks.
 
-If these libraries are provided as ZIP files:
+If it is provided as a ZIP file:
 
-1. Open Arduino IDE
-2. Choose `Sketch > Include Library > Add .ZIP Library...`
-3. Add the DCS-BIOS Arduino library ZIP
-4. Add the DCS-BIOS Easy Mode library ZIP
+1. Open Arduino IDE.
+2. Choose `Sketch > Include Library > Add .ZIP Library...`.
+3. Add the DCS-BIOS Easy Mode library ZIP.
 
 After installation, Arduino IDE should be able to open the example sketches from the `File > Examples` menu.
 
-Photo placeholder:
+![](images/Arduino/Arduino-Include-Library-med.png)
+## Step 5: Install Bort-EasyMode
 
-- Add screenshot of `Add .ZIP Library...`
-
-## Step 4: Install Bort-EasyMode
-
-Install the DCS-BIOS Easy Mode version of Bort from:
-
-https://github.com/wotupfoo/Bort-EasyMode/releases
+Install the DCS-BIOS Easy Mode version of Bort from [Bort-EasyMode releases](https://github.com/wotupfoo/Bort-EasyMode/releases).
 
 Then run Bort-EasyMode.
 
@@ -179,9 +248,9 @@ When Bort-EasyMode first opens, it may need to be pointed at the DCS-BIOS JSON f
 
 If that happens:
 
-1. Open the `Menu`
-2. Choose `Select dcs-bios location`
-3. Point it to the DCS-BIOS JSON folder
+1. Open the `Menu`.
+2. Choose `Select dcs-bios location`.
+3. Point it to the DCS-BIOS JSON folder.
 
 Bort-EasyMode is mainly used as a lookup and copy-paste tool. Think of it as the parts catalog and code generator for the project.
 
@@ -189,7 +258,7 @@ Photo placeholder:
 
 - Add screenshot of Bort-EasyMode showing a selected telemetry item and its code snippets.
 
-## Step 5: Install DCS-BIOS Skunkworks
+## Step 6: Install DCS-BIOS Skunkworks so DCS Can Export Telemetry
 
 DCS-BIOS Skunkworks is what makes DCS telemetry available outside the simulator.
 
@@ -203,9 +272,9 @@ The exact installer and screens may change over time, so if the current Skunkwor
 
 What matters is that after installation:
 
-- DCS-BIOS is installed into your `Saved Games` area
-- DCS is allowed to export data
-- live telemetry is available while DCS is running
+- DCS-BIOS is installed into your `Saved Games` area.
+- DCS is allowed to export data.
+- Live telemetry is available while DCS is running.
 
 For Bort-EasyMode, the important JSON files are normally found in a folder like:
 
@@ -215,9 +284,9 @@ Photo placeholder:
 
 - Add screenshot of the DCS-BIOS folder in Saved Games.
 
-## Step 5: Open The Blank Starting Sketch
+## Step 7: Open 0_DefaultSerial
 
-A blank starting sketch has been included for beginners:
+The numbered journey starts with a blank starting sketch for beginners:
 
 `examples/0_DefaultSerial/0_DefaultSerial.ino`
 
@@ -233,30 +302,103 @@ It already contains:
 
 If you are unsure where copied code belongs, start with this file.
 
-## Step 6: Start DCS And Open Bort-EasyMode
+## Step 8: Build And Upload 0_DefaultSerial Once
+
+Before changing anything, build and upload `0_DefaultSerial` one time.
+
+This proves that:
+
+- Arduino IDE is working.
+- The correct board is selected.
+- The correct COM port is selected.
+- The Easy Mode library is installed correctly.
+
+It is better to find simple setup problems here than later in a more complicated sketch.
+
+From this point on, the steps in this guide stay simple on purpose. There is a lot more detail in the comments inside each example sketch. Read the comments in the example to better understand what it is doing and why it is built that way.
+
+## Step 9: Open 1_Altimeter
+
+Open `1_Altimeter` and look at the simplest complete gauge example in the journey.
+
+This is where the user first sees a working Easy Mode output object in a very small sketch.
+
+## Step 10: Open 2_Pitch_EasyServo
+
+Open `2_Pitch_EasyServo` next.
+
+This introduces a centered-zero gauge using a common beginner servo.
+
+## Step 11: Open 3_Rate_Of_Climb_from_Altitude_EasyServo
+
+Open `3_Rate_Of_Climb_from_Altitude_EasyServo` next.
+
+This shows a more advanced idea: creating a useful gauge value from other telemetry when a direct output is missing.
+
+## Step 12: Open 4_Compass_Heading
+
+Open `4_Compass_Heading` next.
+
+This introduces a wrap-around gauge, which behaves differently from the previous sweep-style examples.
+
+## Step 13: Study 5_Spitfire_Blind_Panel
+
+Study `5_Spitfire_Blind_Panel` as the first full panel example.
+
+This shows how several instruments can live together in one sketch.
+
+## Step 14: Study 6_Mosquito_Blind_Panel
+
+Study `6_Mosquito_Blind_Panel` next.
+
+This is another full panel example that reinforces the same patterns in a different aircraft.
+
+## Step 15: Study 7_Mosquito_Fuel_Panel
+
+Study `7_Mosquito_Fuel_Panel` next.
+
+This shows how maintained switches and input synchronization fit into the same Easy Mode journey.
+
+## Step 16: Return To 0_DefaultSerial For Your Own Project
+
+After you understand the numbered examples, come back to `0_DefaultSerial`.
+
+That is the recommended file to start from when making your own instrument or control from a Bort-EasyMode snippet.
+
+## Step 17: Start DCS World And Open Bort-EasyMode
 
 Start DCS World and load into a flight where the instrument you want can be seen working.
 
-Then open Bort-EasyMode and:
+Then open Bort-EasyMode.
 
-1. Find the aircraft or CommonData item you want
-2. Search for the gauge or control
-3. Look at the code snippets shown for that output
+Bort-EasyMode is a Windows companion app and live reference tool. It helps you find the telemetry or control name you need, and it shows copy-paste code snippets for common Arduino hardware.
+
+In Bort-EasyMode, `CommonData` means shared, non-aircraft-specific telemetry sources. These are values that are useful across many aircraft, such as altitude, latitude, longitude, and other general flight data.
+
+There are also many aircraft-specific telemetry sources. These only work for one aircraft.
+
+It is very important to choose the exact aircraft you own and are going to fly in DCS World, or the telemetry will not work. For example, the free `TF-51` that comes with the game looks very similar to the purchased `P-51D`, but it is not the same aircraft as far as DCS-BIOS is concerned. `P-51D` telemetry will not work in the `TF-51`.
+
+Also note that the free aircraft do not have aircraft-specific telemetry. Only purchased aircraft have aircraft-specific telemetry, so for free aircraft you will usually need to use `CommonData`.
+
+Then use Bort-EasyMode like this:
+
+1. Choose the exact aircraft you are flying, or choose `CommonData`.
+2. Search for the gauge or control.
+3. Look at the code snippets shown for that output.
 
 Choose the snippet that matches your hardware.
 
 Examples:
 
-- SG90 servo: choose the `DcsBios::EasyMode::Servo_SG90` snippet
-- generic servo: choose the `DcsBios::EasyMode::Servo` snippet
-- generic stepper: choose a generic stepper snippet
-- 28BYJ-48 stepper: choose a `28BYJ48` snippet
+- SG90 servo: choose the `DcsBios::EasyMode::Servo_SG90` snippet.
+- Generic servo: choose the `DcsBios::EasyMode::Servo` snippet.
+- Generic stepper: choose a generic stepper snippet.
+- 28BYJ-48 stepper: choose a `28BYJ48` snippet.
 
-## Step 7: Copy And Paste From Bort
+## Step 18: Copy The Snippet From Bort-EasyMode
 
 This is the easiest beginner method.
-
-### What To Copy
 
 From Bort-EasyMode, copy the hardware snippet you want.
 
@@ -266,7 +408,7 @@ Examples:
 - `DcsBios::EasyMode::Stepper ...`
 - `DcsBios::EasyMode::Stepper_28BYJ48 ...`
 
-### Where To Paste It
+## Step 19: Paste It Into 0_DefaultSerial And Change Only The First Few Things
 
 Paste the main object line near the top of the blank sketch, above `setup()`.
 
@@ -279,8 +421,6 @@ If the example also tells you to add extra tuning lines such as:
 
 put those lines inside `setup()`, before `DcsBios::setup();`
 
-### What You Usually Change First
-
 A beginner will usually only need to change:
 
 - telemetry source name
@@ -291,13 +431,13 @@ A beginner will usually only need to change:
 - minimum angle
 - trim
 
-## The Simplest Copy-Paste Pattern
+## Step 20: Build And Upload Your Own Sketch
 
-The blank sketch is designed around this simple idea:
+The simplest copy-paste pattern is:
 
-1. Paste the Bort snippet above `setup()`
-2. Paste any extra adjustment lines into `setup()`
-3. Upload
+1. Paste the Bort snippet above `setup()`.
+2. Paste any extra adjustment lines into `setup()`.
+3. Build and upload.
 
 Example:
 
@@ -321,7 +461,6 @@ void loop() {
 ```
 
 That is the basic pattern for most Easy Mode builds.
-
 ## What Each Example Is For
 
 The example sketches in this library are not just random demos. Each one is meant to answer a common beginner question.
@@ -659,6 +798,4 @@ An important part of that work was research. The AI was able to study the surrou
 That same collaboration also helped identify a broader design problem: DCS-BIOS and Bort were powerful tools, but they often assumed more software knowledge than many builders have or want to have. Many users are strong in aircraft systems, electronics, and physical fabrication, but may not be comfortable with programming language, software abstractions, or reading raw code. A major goal of this project was therefore to reduce that barrier and reshape the experience so it felt more welcoming to non-programmers.
 
 With that goal in mind, the AI helped reshape both the code and the user experience. It contributed to the design and implementation of DCS-BIOS Easy Mode, created example sketches based on real DCS World telemetry, modified Bort so its generated snippets were easier to understand and copy into Arduino IDE, and helped produce beginner-friendly instructions for installing and using the whole toolchain. The result is not only a set of software changes, but also a more accessible workflow for people who want to build virtual cockpit hardware without needing to think like professional software developers.
-
-
 
