@@ -115,6 +115,7 @@ Examples:
 
 **DCS-BIOS Skunkwork Releases:** `https://github.com/DCS-Skunkworks/dcs-bios/releases`
 
+# ***INSERT SCREEN GRABS OF INSTALLING DCS-BIOS FOR DCS AND FOR ARDUINO***
 
 ## DCS-BIOS Easy Mode
 
@@ -134,6 +135,8 @@ Instead of thinking in low-level pulse widths or motor internals, the idea is to
 - clockwise or counter-clockwise
 - zero at one end or zero in the middle
 
+# ***INSERT SCREEN GRABS OF INSTALLING DCS-BIOS-EASY-MODE FOR ARDUINO***
+
 ## Bort-EasyMode
 
 Bort-EasyMode is the Easy Mode version of Bort, the DCS-BIOS reference and code-snippet tool.
@@ -144,6 +147,8 @@ You use Bort-EasyMode to:
 - See live values.
 - Choose a code snippet for your hardware.
 - Copy that snippet into Arduino IDE.
+
+# ***INSERT SCREEN GRABS OF INSTALLING BORT-EASY-MODE***
 
 ## What You Need Installed
 
@@ -160,16 +165,16 @@ For your first DCS-BIOS Easy Mode project, install these five things in this ord
 If you are new, follow this order:
 
 1. Install DCS World.
-2. Install Arduino IDE.
-3. Install DCS-BIOS from Skunkworks into Arduino IDE.
-4. Install DCS-BIOS Easy Mode into Arduino IDE.
-5. Install Bort-EasyMode.
-6. Install DCS-BIOS Skunkworks so DCS can export telemetry.
+2. Install DCS-BIOS from Skunkworks into Arduino IDE.
+3. Install Arduino IDE.
+4. Install DCS-BIOS Skunkworks so DCS can export telemetry.
+5. Install DCS-BIOS Easy Mode into Arduino IDE.
+6. Install Bort-EasyMode.
 7. Open `0_DefaultSerial`.
 8. Build and upload `0_DefaultSerial` once.
 9. Open `1_Altimeter`.
 10. Open `2_Pitch_EasyServo`.
-11. Open `3_Rate_Of_Climb_from_Altitude_EasyServo`.
+11. Open `3_Rate_Of_Climb_from_Altitude`.
 12. Open `4_Compass_Heading`.
 13. Study `5_Spitfire_Blind_Panel`.
 14. Study `6_Mosquito_Blind_Panel`.
@@ -180,6 +185,17 @@ If you are new, follow this order:
 19. Paste it into `0_DefaultSerial` and change only the first few things.
 20. Build and upload your own sketch.
 
+## Tip on what's what
+
+For a beginner, the easiest mental model is:
+- DCS World is the Digital Combat Simulator
+- the DCS-BIOS plugin from Skunkworks for DCS World makes it possible to connect the simulation information with the real world.
+- Ardiuno is a tool that can take software programs and put them on Arduino electronics boards
+- one Ardiuno library (DCS-BIOS from Skunkworks) handles the communication from the board (typically over USB) to/from the DCS-BIOS plugin added to DCS World.
+- one Ardiuno library (DCS-BIOS Easy Mode) sits in front of the DCS-BIOS software running on the Arduino board. It makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS from Skunkworks lacks.
+- the Arduino electronics board. eg. Arduino Mega2560, Arduino Nano, Arduino UNO, Arduino Due, Arduino Bluepill, Arduino ESP32
+- switches and knobs as well as moving items like Steppers and Servos built into mechanical components to emulate an aircraft cockpit control.
+
 ## Step 1: Install DCS World
 
 Install DCS World the normal way for your computer:
@@ -188,7 +204,35 @@ Install DCS World the normal way for your computer:
 
 If DCS World is not installed yet, it is better to do that first so the rest of the toolchain has a real simulator to connect to later.
 
-## Step 2: Install Arduino IDE
+## **The DCS World downloaded content is HUGE.**
+### **150 Gbytes to start with; another 30Gbytes or more per Map added.**
+### **It takes a long time to download. So start it early.**
+
+## Step 2: Install DCS-BIOS Skunkworks so DCS Can Export Telemetry
+
+DCS-BIOS Skunkworks is what makes DCS telemetry available outside the simulator.
+
+In simple terms:
+
+- DCS World runs the aircraft.
+- DCS-BIOS reads the aircraft data.
+- Your Arduino sketch listens to that data.
+
+The exact installer and screens may change over time, so if the current Skunkworks release looks a little different, that is normal.
+
+Tip: this is where it's installed:
+- `C:\[Username]\Saved Games\DCS\Scripts\export.lua`
+- `C:\[Username]\Saved Games\DCS\Scripts\DCS-BIOS\`
+
+- DCS-BIOS is installed into your `Saved Games` area.
+- DCS is allowed to export data.
+- Live telemetry is available while DCS is running.
+
+Photo placeholder:
+
+- Add screenshot of the DCS-BIOS folder in Saved Games.
+
+## Step 3: Install Arduino IDE
 
 Install Arduino IDE the normal way for your computer:
 
@@ -204,49 +248,45 @@ When it opens for the first time:
 
 If upload fails later, the most common cause is the wrong board or wrong COM port being selected.
 
+## Step 4: Install DCS-BIOS From Skunkworks Into Arduino IDE
 
-
-## Step 3: Install DCS-BIOS From Skunkworks Into Arduino IDE
-
-You need the Arduino side of DCS-BIOS available inside Arduino IDE.
-
+You need two parts from this download.
+- The DCS-BIOS part that is installed the DCS World Save Game directory.
 Get the ZIP file from the [DCS-BIOS Skunkworks releases](https://github.com/DCS-Skunkworks/dcs-bios/releases).
 
-If it is provided as a ZIP file:
+- The Arduino DCS-BIOS Library available inside Arduino IDE. This is installed from a downloaded ZIP file.
+The Arduino library ZIP file is inside the DCS-BIOS plugin ZIP (above).
 
+Installing the **DCS-BIOS** Arduino library:
 1. Open Arduino IDE.
 2. Choose `Sketch > Include Library > Add .ZIP Library...`.
 3. Add the DCS-BIOS Arduino library ZIP.
 
-## Step 4: Install DCS-BIOS Easy Mode Into Arduino IDE
+## Step 5: Install DCS-BIOS Easy Mode Into Arduino IDE
 
 You also need the DCS-BIOS Easy Mode Arduino library available inside Arduino IDE.
 
 Get the ZIP file from the [DCS-BIOS Easy Mode releases](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases).
 
-For a beginner, the easiest mental model is:
-
-- one library (DCS-BIOS Skunkworks) handles the communication from the board to and from DCS.
-- one library (DCS-BIOS Easy Mode) makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS Skunkworks lacks.
-
-If it is provided as a ZIP file:
-
+Installing the **DCS-BIOS Easy Mode** Arduino library:
 1. Open Arduino IDE.
 2. Choose `Sketch > Include Library > Add .ZIP Library...`.
-3. Add the DCS-BIOS Easy Mode library ZIP.
+3. Add the DCS-BIOS Easy-Mode Arduino library ZIP.
 
 After installation, Arduino IDE should be able to open the example sketches from the `File > Examples` menu.
 
 ![](images/Arduino/Arduino-Include-Library-med.png)
-## Step 5: Install Bort-EasyMode
+
+## Step 6: Install Bort-EasyMode
 
 Install the DCS-BIOS Easy Mode version of Bort from [Bort-EasyMode releases](https://github.com/wotupfoo/Bort-EasyMode/releases).
 
 Then run Bort-EasyMode.
 
-When Bort-EasyMode first opens, it may need to be pointed at the DCS-BIOS JSON folder.
+When Bort-EasyMode first opens, it may need to be pointed at the DCS-BIOS folder that holds all the information about each of the aircraft.
+If you see a blank application after **waiting up to 30 seconds for it to load** you may need to tell Bort where your aircraft information is.
 
-If that happens:
+Tip: this is typically: `C:\[Username]\Saved Games\DCS\Scripts\DCS-BIOS\doc\json`
 
 1. Open the `Menu`.
 2. Choose `Select dcs-bios location`.
@@ -257,32 +297,6 @@ Bort-EasyMode is mainly used as a lookup and copy-paste tool. Think of it as the
 Photo placeholder:
 
 - Add screenshot of Bort-EasyMode showing a selected telemetry item and its code snippets.
-
-## Step 6: Install DCS-BIOS Skunkworks so DCS Can Export Telemetry
-
-DCS-BIOS Skunkworks is what makes DCS telemetry available outside the simulator.
-
-In simple terms:
-
-- DCS World runs the aircraft.
-- DCS-BIOS reads the aircraft data.
-- Your Arduino sketch listens to that data.
-
-The exact installer and screens may change over time, so if the current Skunkworks release looks a little different, that is normal.
-
-What matters is that after installation:
-
-- DCS-BIOS is installed into your `Saved Games` area.
-- DCS is allowed to export data.
-- Live telemetry is available while DCS is running.
-
-For Bort-EasyMode, the important JSON files are normally found in a folder like:
-
-`Saved Games\DCS\Scripts\DCS-BIOS\doc\json`
-
-Photo placeholder:
-
-- Add screenshot of the DCS-BIOS folder in Saved Games.
 
 ## Step 7: Open 0_DefaultSerial
 
@@ -489,62 +503,6 @@ Photo placeholder:
 
 - Add screenshot of the blank example open in Arduino IDE.
 
-### Altimeter_EasyServo
-
-File:
-`examples/Altimeter_EasyServo/Altimeter_EasyServo.ino`
-
-What it is:
-
-- A generic servo example.
-- A more detailed servo setup where all the main servo settings are visible in the first line.
-
-Use it when:
-
-- You are not using an SG90-style shortcut
-- You want to see the full generic servo form
-
-Usually changed by the user:
-
-- servo pin
-- minimum angle
-- maximum angle
-- direction
-- trim
-
-Important warning:
-
-- A normal hobby servo is not a good real-world choice for a multi-turn altimeter needle.
-
-Photo placeholder:
-
-- Add photo of a generic hobby servo on a demonstration dial.
-
-### Altimeter_EasyServo_SG90
-
-File:
-`examples/Altimeter_EasyServo_SG90/Altimeter_EasyServo_SG90.ino`
-
-What it is:
-
-- The shortest SG90-based servo example.
-- A good first success example when using an SG90 or MG90 style servo.
-
-Use it when:
-
-- You want the shortest copy-paste servo setup
-- You will change angles and trim later in `setup()`
-
-Usually changed by the user:
-
-- servo pin
-- maximum angle
-- trim
-
-Photo placeholder:
-
-- Add photo of an SG90 or MG90 mounted behind an instrument face.
-
 ### 1_Altimeter
 
 File:
@@ -575,86 +533,6 @@ Important idea:
 Photo placeholder:
 
 - Add photo of a generic stepper and driver board connected to an altimeter dial.
-
-### 91_Altimeter_EasyStepper
-
-File:
-`examples/91_Altimeter_EasyStepper/91_Altimeter_EasyStepper.ino`
-
-What it is:
-
-- The same altimeter idea as above, but for the common 28BYJ-48 and ULN2003 board.
-
-Use it when:
-
-- You have a 28BYJ-48 stepper
-- You want a beginner-friendly stepper example with fewer setup details
-
-Usually changed by the user:
-
-- motor pins
-- zero detection pin
-- whether zero is at the start or in the middle
-- maximum angle
-
-Photo placeholder:
-
-- Add photo of a 28BYJ-48 and ULN2003 board driving an altimeter dial.
-
-### 4_Compass_Heading
-
-File:
-`examples/4_Compass_Heading/4_Compass_Heading.ino`
-
-What it is:
-
-- A continuous generic stepper example.
-- A good starting point for repeating 360 degree instruments.
-
-Use it when:
-
-- The instrument goes around and around
-- 360 degrees should behave the same as 0 degrees
-
-Usually changed by the user:
-
-- motor pins
-- zero detection pin
-- whether zero is at the start or in the middle
-- whether modulus wrapping stays on
-
-Important idea:
-
-- This example is for repeating motion, not a fixed end-stop sweep.
-
-Photo placeholder:
-
-- Add photo of a compass or heading repeater driven by a generic stepper.
-
-### 92_Compass_Heading
-
-File:
-`examples/92_Compass_Heading/92_Compass_Heading.ino`
-
-What it is:
-
-- The same heading idea as the generic compass example, but with a 28BYJ-48.
-
-Use it when:
-
-- You have a 28BYJ-48 stepper
-- You want a 360 degree repeating instrument
-
-Usually changed by the user:
-
-- motor pins
-- zero detection pin
-- whether zero is at the start or in the middle
-- whether modulus wrapping stays on
-
-Photo placeholder:
-
-- Add photo of a 28BYJ-48 turning a compass card or heading pointer.
 
 ### 2_Pitch_EasyServo
 
@@ -715,27 +593,113 @@ Photo placeholder:
 
 - Add photo of a derived rate-of-climb gauge driven from altitude metadata.
 
+### 4_Compass_Heading
+
+File:
+`examples/4_Compass_Heading/4_Compass_Heading.ino`
+
+What it is:
+
+- A continuous generic stepper example.
+- A good starting point for repeating 360 degree instruments.
+
+Use it when:
+
+- The instrument goes around and around
+- 360 degrees should behave the same as 0 degrees
+
+Usually changed by the user:
+
+- motor pins
+- zero detection pin
+- whether zero is at the start or in the middle
+- whether modulus wrapping stays on
+
+Important idea:
+
+- This example is for repeating motion, not a fixed end-stop sweep.
+
+Photo placeholder:
+
+- Add photo of a compass or heading repeater driven by a generic stepper.
+
+## Advanced Examples
+The following examples expand on the lessons learned in examples 0 through 7.
+Unlike the starting examples that use commonly available Steppers (Tiny 28BYJ-48 + ULN2003 Driver chip) and RC Servo Motor SG90/MG90 that have all of it's properties captured in the driver so that you, the user, doesn't have to provide the information.
+In contrast, these examples use the Generic version of EasyStepper and EasyServo where all the physical properties of the Stepper or Servo have to be defined.
+
+### 91_Altimeter_EasyStepper
+
+File:
+`examples/91_Altimeter_EasyStepper/91_Altimeter_EasyStepper.ino`
+
+What it is:
+
+- The same altimeter idea as above, but for the common 28BYJ-48 and ULN2003 board.
+
+Use it when:
+
+- You have a 28BYJ-48 stepper
+- You want a beginner-friendly stepper example with fewer setup details
+
+Usually changed by the user:
+
+- motor pins
+- zero detection pin
+- whether zero is at the start or in the middle
+- maximum angle
+
+Photo placeholder:
+
+- Add photo of a 28BYJ-48 and ULN2003 board driving an altimeter dial.
+
+### 92_Compass_Heading
+
+File:
+`examples/92_Compass_Heading/92_Compass_Heading.ino`
+
+What it is:
+
+- The same heading idea as the generic compass example, but with a 28BYJ-48.
+
+Use it when:
+
+- You have a 28BYJ-48 stepper
+- You want a 360 degree repeating instrument
+
+Usually changed by the user:
+
+- motor pins
+- zero detection pin
+- whether zero is at the start or in the middle
+- whether modulus wrapping stays on
+
+Photo placeholder:
+
+- Add photo of a 28BYJ-48 turning a compass card or heading pointer.
+
+
 ## Suggested Learning Path
 
 For a natural progression through the examples:
 
 - Start with `1_Altimeter` to learn a simple one-way gauge.
 - Move to `2_Pitch_EasyServo` to learn centered-zero gauges.
-- Then try `3_Rate_Of_Climb_from_Altitude_EasyServo` to learn how to derive a gauge value from other telemetry.
+- Then try `3_Rate_Of_Climb_from_Altitude` to learn how to derive a gauge value from other telemetry.
 - Continue with `4_Compass_Heading`, then the full blind-panel examples.
 
 ## Which Example Should I Start With?
 
 If you have:
 
-- an SG90 or MG90 servo: start with `Altimeter_EasyServo_SG90`
-- another hobby servo: start with `Altimeter_EasyServo`
-- a 28BYJ-48 stepper and a one-way gauge: start with `1_Altimeter`
-- a generic 4-wire stepper and a one-way gauge: start with `91_Altimeter_EasyStepper`
-- a repeating 360 degree gauge: start with one of the `Compass_Heading_*` examples
-- a centered-zero gauge: start with `2_Pitch_EasyServo`
-- a derived vertical-speed gauge: start with `3_Rate_Of_Climb_from_Altitude_EasyServo`
 - no idea where to start and you just want to paste from Bort: start with `0_DefaultSerial`
+- a 28BYJ-48 stepper and a one-way gauge: start with `1_Altimeter`
+- an SG90 or MG90 servo and a centered-zero gauge: start with `2_Pitch`
+
+- a generic 4-wire stepper and a one-way gauge: start with `91_Altimeter_Advanced`
+- a generic servo and a one-way gauge: start with `92_Pitch_Advanced`
+- a generic 4-wire stepper and a wrapping gauge: start with `94_Compass_Heading_Advanced`
+
 
 ## Common Beginner Mistakes
 
@@ -755,9 +719,8 @@ Check:
 
 Check:
 
-- reverse setting
-- motor wire order
-- printed dial direction
+- reverse the direction setting to accomodate your gear train being backwards
+- motor wire order (Steppers)
 
 ### The gauge moves, but the sweep is too small or too large
 
