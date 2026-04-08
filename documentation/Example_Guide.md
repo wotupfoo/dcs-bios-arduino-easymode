@@ -185,17 +185,6 @@ If you are new, follow this order:
 19. Paste it into `0_DefaultSerial` and change only the first few things.
 20. Build and upload your own sketch.
 
-## Tip on what's what
-
-For a beginner, the easiest mental model is:
-- DCS World is the Digital Combat Simulator
-- the DCS-BIOS plugin from Skunkworks for DCS World makes it possible to connect the simulation information with the real world.
-- Ardiuno is a tool that can take software programs and put them on Arduino electronics boards
-- one Ardiuno library (DCS-BIOS from Skunkworks) handles the communication from the board (typically over USB) to/from the DCS-BIOS plugin added to DCS World.
-- one Ardiuno library (DCS-BIOS Easy Mode) sits in front of the DCS-BIOS software running on the Arduino board. It makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS from Skunkworks lacks.
-- the Arduino electronics board. eg. Arduino Mega2560, Arduino Nano, Arduino UNO, Arduino Due, Arduino Bluepill, Arduino ESP32
-- switches and knobs as well as moving items like Steppers and Servos built into mechanical components to emulate an aircraft cockpit control.
-
 ## Step 1: Install DCS World
 
 Install DCS World the normal way for your computer:
@@ -211,26 +200,117 @@ If DCS World is not installed yet, it is better to do that first so the rest of 
 ## Step 2: Install DCS-BIOS Skunkworks so DCS Can Export Telemetry
 
 DCS-BIOS Skunkworks is what makes DCS telemetry available outside the simulator.
-
 In simple terms:
 
 - DCS World runs the aircraft.
 - DCS-BIOS reads the aircraft data.
 - Your Arduino sketch listens to that data.
 
-The exact installer and screens may change over time, so if the current Skunkworks release looks a little different, that is normal.
+Get the ZIP file from the [DCS-BIOS Skunkworks releases](https://github.com/DCS-Skunkworks/dcs-bios/releases).
 
-Tip: this is where it's installed:
+As of the writing of this document, the [Latest](https://github.com/DCS-Skunkworks/dcs-bios/releases/latest) DCS-BIOS plug-in ZIP file is here in the [DCS-BIOS v0.11.3](https://github.com/DCS-Skunkworks/dcs-bios/releases/tag/v0.11.3) Release
+
+**IMPORTANT NOTE: There are 4 different files available in the Release.**
+- You do NOT want the `DCS-BIOS_vX.YY.Z.zip` (which is what would make sense).
+- You actually need the "[Source code (zip)](https://github.com/DCS-Skunkworks/dcs-bios/archive/refs/tags/v0.11.3.zip)"
+-    `https://github.com/DCS-Skunkworks/dcs-bios/archive/refs/tags/v0.11.3.zip`
+
+Expand the dcs-bios-0.11.3.zip (In File Explorer Right-Click -> Extract All)
+
+![](images\dcs-bios-extract-med.png)
+
+Open the newly extracted dcs-bios-0.11.3 Directory
+
+![](images\dcs-bios-zip.png)
+
+If you navigate into Scripts directory you will see a `Exports.lua` file and a `DCS-BIOS` directory.
+
+We are going to copy these two files into your Save Games
+
+**Aside:- The Arduino zip:**
+If you navigate into the v0.11.3.zip you will see that the Arduino ZIP file is inside to too here:
+
+`dcs-bios-0.11.3\Programs\dcs-bios-arduino-library\dcs-bios-arduino-library-0.3.9.zip`
+
+We will use this `Programs` directory and the Arduino ZIP buried in it in a later step to add DCS-BIOS functionality to the Arduino IDE.
+
+### What's happening?
+- DCS-BIOS is being installed into your `Saved Games` area.
+- DCS is configured (in Export.luq) to export data to DCS-BIOS.
+- Live telemetry is available while DCS is running. DCS-BIOS makes it available on your local network.
+- Depending on your Windows Network Security Firewall settings, you may have to agree to allowing DCS-BIOS to use the network.
+
+Using Explorer, open your **Saved Games** directory `C:\[Username]\Saved Games` 
+
+![](images\dcs-savegame-med.png)
+
+If you don't have a **DCS** directory in your **Saved Games** the easiest thing to do is run DCS World, open a mission then exit the game.
+You should now be able to see `C:\[Username]\Saved Games\DCS` 
+If that directory doesn't have the **Scripts** sub-directory you can right-click Add Folder to creat it.
+
+If you already have a `C:\[username]\Saved Games\DCS\Scripts\export.lua` do not copy the `export.lua` from the extracted zip and instead open it in a text editor and add this line to the top so as not to destroy whatever is already in that file.
+`dofile(lfs.writedir() .. [[Scripts\DCS-BIOS\BIOS.lua]])`
+
+Copy these to the Saved Games\DCS\Scripts from the extracted ZIP file:
 - `C:\[Username]\Saved Games\DCS\Scripts\export.lua`
 - `C:\[Username]\Saved Games\DCS\Scripts\DCS-BIOS\`
 
-- DCS-BIOS is installed into your `Saved Games` area.
-- DCS is allowed to export data.
-- Live telemetry is available while DCS is running.
+Next, we need to keep a copy of the helper programs that comes in the Sources zip (that are missing in the DCS-BIOS zip, which is why we needed this Sources ZIP file).
 
-Photo placeholder:
+In the extracted directory there is a \Programs directory. You can put it whereever you like however a lot of people just put it here as a handy place to put it. It's kinda weird to put it in a Saved Games directory tree but it doesn't matter where it is at all.
+- `C:\[Username]\Saved Games\DCS\Scripts\DCS-BIOS\Programs`
 
-- Add screenshot of the DCS-BIOS folder in Saved Games.
+To use DCS-BIOS, you need to be able to join your Arduino boards to the DCS World telemetry provided by DCS-BIOS.
+
+    For the technically minded, you can find out about the network ports that are opened up here:
+    https://github.com/dcs-bios/dcs-bios.github.io/blob/master/docs/v0.2.3/developerguide.adoc
+    A Multicast UDP port is opened (sending all telemetry in a binary protocol) as well as a TCP Unicast port (listening for a TEXT based message from Arduino devices).
+
+
+**What you need to know to use DCS-BIOS**
+
+### If you have a single Arduino board
+
+In the directory `C:\[Username]\Saved Games\DCS\Scripts\DCS-BIOS\Programs` there are a couple of scripts (file extension .cmd). If you have a single Arduino board you can use the `connect-serial-port.cmd` application to join the Arduino USB serial port (eg COM4, different with every board) to DCS-BIOS.
+
+When you run this script it will prompt you for the serial port of your Arduino (assuming you have only one at the moment).
+
+        "This Program must remain open in order to function"
+
+
+        Enter a COM Port Number:
+
+Type in the number of the serial port. eg. if it's COM4 type in '4' and hit Enter.
+- It's highly likely that the Windows Network Security will trigger an alert. You need to allow `socat` to use the local network (public and private).
+- `socat` is a little program that can join serial ports to the computer network where the telemetry is "flowing".
+- Once DCS World starts you'll see a bunch of garbage flying by. This is what you want.
+
+### If you have multiple Arduino boards 
+eg Spitfire Blind Panel + Trims Wheels + Fuel Panel + Engine Panel
+You'll need to use the `multiple-com-ports.cmd` instead.
+This is what it looks like inside that application
+
+        @echo off
+        REM The COMPORTS variable should be set to a space-separated list of COM port numbers:
+        set COMPORTS=11
+
+        for %%i in (%COMPORTS%) do start /b cmd /c connect-serial-port.cmd /Q %%i
+
+Where is says "COMPORTS=11" you need to put in a space separated list of your Ardunio board' serial ports.
+eg. for Arudino boards showing up as COM2, COM3, COM5, COM12, COM15
+
+        set COMPORTS=2 3 5 7 12 15
+
+## You're setup to use DCS World with DCS-BIOS flowing telemetry to and from Arduino Boards!
+
+# The Arduino embedded hardware eco-system
+## Tip on what's what in the Arduino eco-system
+
+For a beginner, the easiest mental model is:
+- one Ardiuno library (DCS-BIOS from Skunkworks) handles the communication from the board (typically over USB) to/from the DCS-BIOS plugin added to DCS World.
+- one Ardiuno library (DCS-BIOS Easy Mode) sits in front of the DCS-BIOS software running on the Arduino board. It makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS from Skunkworks lacks.
+- the Arduino electronics board. eg. Arduino Mega2560, Arduino Nano, Arduino UNO, Arduino Due, Arduino Bluepill, Arduino ESP32
+- switches and knobs as well as moving items like Steppers and Servos built into mechanical components to emulate an aircraft cockpit control.
 
 ## Step 3: Install Arduino IDE
 
@@ -250,12 +330,15 @@ If upload fails later, the most common cause is the wrong board or wrong COM por
 
 ## Step 4: Install DCS-BIOS From Skunkworks Into Arduino IDE
 
-You need two parts from this download.
-- The DCS-BIOS part that is installed the DCS World Save Game directory.
-Get the ZIP file from the [DCS-BIOS Skunkworks releases](https://github.com/DCS-Skunkworks/dcs-bios/releases).
+From Step 2 we have the DCS-BIOS Arduino ZIP file.
 
-- The Arduino DCS-BIOS Library available inside Arduino IDE. This is installed from a downloaded ZIP file.
-The Arduino library ZIP file is inside the DCS-BIOS plugin ZIP (above).
+Open the newly extracted dcs-bios-0.11.3 Directory
+
+![](images\dcs-bios-zip.png)
+
+Navigate into the v0.11.3.zip you will see that the Arduino ZIP file is inside to too here:
+
+`dcs-bios-0.11.3\Programs\dcs-bios-arduino-library\dcs-bios-arduino-library-0.3.9.zip`
 
 Installing the **DCS-BIOS** Arduino library:
 1. Open Arduino IDE.
@@ -264,7 +347,7 @@ Installing the **DCS-BIOS** Arduino library:
 
 ## Step 5: Install DCS-BIOS Easy Mode Into Arduino IDE
 
-You also need the DCS-BIOS Easy Mode Arduino library available inside Arduino IDE.
+You also need the **DCS-BIOS Easy Mode** Arduino library available for use inside the Arduino IDE.
 
 Get the ZIP file from the [DCS-BIOS Easy Mode releases](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases).
 
@@ -273,7 +356,7 @@ Installing the **DCS-BIOS Easy Mode** Arduino library:
 2. Choose `Sketch > Include Library > Add .ZIP Library...`.
 3. Add the DCS-BIOS Easy-Mode Arduino library ZIP.
 
-After installation, Arduino IDE should be able to open the example sketches from the `File > Examples` menu.
+After installation, Arduino IDE should be able to open the example sketches from the `File > Examples > DCS-BIOS Easy Mode >` menu.
 
 ![](images/Arduino/Arduino-Include-Library-med.png)
 
