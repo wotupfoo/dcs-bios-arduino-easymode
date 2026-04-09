@@ -65,6 +65,15 @@ DcsBios::EasyMode::Switch3Pos stbdFuelCock("STBD_FUEL_COCK",
 
 void setup() {
     DcsBios::EasyMode::setup();
+
+    // Send the state of the hardware every 2 seconds
+    DcsBios::EasyMode::refreshInterval(2000);
+    // Enable refresh for all switches
+    tankPress.refresh(true);
+    portFuelCutout.refresh(true);
+    stbdFuelCutout.refresh(true);
+    portFuelCock.refresh(true);
+    stbdFuelCock.refresh(true);
 }
 
 void loop() {

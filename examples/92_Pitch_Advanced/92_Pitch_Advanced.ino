@@ -54,19 +54,17 @@
  *    - Avoid commanding beyond the servo physical limit.
  *    - Keep setMin/Max within servo stroke and hardware linkage range.
  */
-
-DcsBios::EasyMode::Servo_SG90 adiPitchServo(
-    PITCH_SOURCE,           // Telemetry source: your aircraft-specific pitch output
-    8                      // Arduino pin connected to the servo signal wire
+DcsBios::EasyMode::Servo adiPitchServo(
+    PITCH_SOURCE,   // DCS World: memory address with the value
+    8,              // Arduino pin connected to the servo signal wire
+    -20.0f,         // Minimum needle angle in degrees for the lowest DCS-BIOS value
+    20.0f,          // Maximum needle angle in degrees for the highest DCS-BIOS value
+    false,          // Reverse the direction (true or false)
+    0,              // Trim Degrees: rotate the whole scale to match the printed dial face
+    65535           // Maximum incoming DCS-BIOS value for this source
 );
 
 void setup() {
-    // Change these to match the sweep used by your printed instrument face.
-    adiPitchServo.setMinAngle(-20.0f);
-    adiPitchServo.setMaxAngle(20.0f);
-    adiPitchServo.setTrimDeg(0.0f);
-    adiPitchServo.setDirection(1);
-
     DcsBios::EasyMode::setup();
 }
 

@@ -6,7 +6,7 @@
  * Arduino Mega2560 and Due are there as examples, but you can modify for any 
  * board by following the pin availability notes and examples in that file.
  */
-// Hint: Put your cursor over boardconfig.h and press F12 to open it
+// Hint: Left-click to put your cursor in the middle of boardconfig.h and press F12 to open it
 #include "boardconfig.h"    
 
 /******************************************************************************

@@ -23,7 +23,16 @@ inline void setup() {
 }
 
 inline void loop() {
+    DcsBios::serviceEasyModeRefreshes();
     DcsBios::loop();
+}
+
+inline void refreshInterval(unsigned long intervalMs) {
+    DcsBios::setEasyModeRefreshInterval(intervalMs);
+}
+
+inline unsigned long getRefreshInterval() {
+    return DcsBios::getEasyModeRefreshInterval();
 }
 
 inline bool tryToSendDcsBiosMessage(const char* msg, const char* arg) {
@@ -38,6 +47,8 @@ inline void resetAllStates() {
     DcsBios::resetAllStates();
 }
 
+// Only maintained-state inputs participate in periodic refreshes.
+// Momentary buttons and relative encoders are intentionally left as plain aliases.
 using ActionButton = DcsBios::ActionButton;
 using ToggleButton = DcsBios::ToggleButton;
 using MatActionButton = DcsBios::MatActionButton;
@@ -45,28 +56,28 @@ using MatActionButtonToggle = DcsBios::MatActionButtonToggle;
 using MatActionButtonSet = DcsBios::MatActionButtonSet;
 using DualModeButton = DcsBios::DualModeButton;
 
-using Switch2Pos = EasyModeSwitch2Pos;
-using Switch3Pos = EasyModeSwitch3Pos;
-using SwitchMultiPos = EasyModeSwitchMultiPos;
-using SwitchWithCover2Pos = DcsBios::SwitchWithCover2Pos;
+using Switch2Pos = EasyModeRefreshableInputT<EasyModeSwitch2Pos>;
+using Switch3Pos = EasyModeRefreshableInputT<EasyModeSwitch3Pos>;
+using SwitchMultiPos = EasyModeRefreshableInputT<EasyModeSwitchMultiPos>;
+using SwitchWithCover2Pos = EasyModeRefreshableInputT<DcsBios::SwitchWithCover2Pos>;
 #if defined(USE_MATRIX_SWITCHES) || defined(DCSBIOS_USE_MATRIX_SWITCHES)
-using Matrix2Pos = DcsBios::Matrix2Pos;
-using Matrix3Pos = DcsBios::Matrix3Pos;
-using MatSwitch2Pos = DcsBios::MatSwitch2Pos;
-using MatSwitch3Pos = DcsBios::MatSwitch3Pos;
+using Matrix2Pos = EasyModeRefreshableInputT<DcsBios::Matrix2Pos>;
+using Matrix3Pos = EasyModeRefreshableInputT<DcsBios::Matrix3Pos>;
+using MatSwitch2Pos = EasyModeRefreshableInputT<DcsBios::MatSwitch2Pos>;
+using MatSwitch3Pos = EasyModeRefreshableInputT<DcsBios::MatSwitch3Pos>;
 #endif
 
-using AnalogMultiPos = EasyModeAnalogMultiPos;
-using RotarySwitch = EasyModeRotarySwitch<>;
-using Potentiometer = DcsBios::Potentiometer;
+using AnalogMultiPos = EasyModeRefreshableInputT<EasyModeAnalogMultiPos>;
+using RotarySwitch = EasyModeRefreshableInputT<EasyModeRotarySwitch<>>;
+using Potentiometer = EasyModeRefreshableInputT<DcsBios::Potentiometer>;
 using RotaryEncoder = DcsBios::RotaryEncoder;
 using RotaryAcceleratedEncoder = DcsBios::RotaryAcceleratedEncoder;
 using MatRotaryEncoder = DcsBios::MatRotaryEncoder;
 using EmulatedConcentricRotaryEncoder = DcsBios::EmulatedConcentricRotaryEncoder;
-using RotarySyncingPotentiometer = EasyModeRotarySyncingPotentiometer;
-using InvertedRotarySyncingPotentiometer = EasyModeInvertedRotarySyncingPotentiometer;
-using BcdWheel = DcsBios::BcdWheel;
-using RadioPreset = DcsBios::RadioPreset;
+using RotarySyncingPotentiometer = EasyModeRefreshableInputT<EasyModeRotarySyncingPotentiometer>;
+using InvertedRotarySyncingPotentiometer = EasyModeRefreshableInputT<EasyModeInvertedRotarySyncingPotentiometer>;
+using BcdWheel = EasyModeRefreshableInputT<DcsBios::BcdWheel>;
+using RadioPreset = EasyModeRefreshableInputT<DcsBios::RadioPreset>;
 
 using IntegerBuffer = DcsBios::IntegerBuffer;
 template <unsigned int LENGTH>

@@ -173,7 +173,7 @@ If you are new, follow this order:
 7. Open `0_DefaultSerial`.
 8. Build and upload `0_DefaultSerial` once.
 9. Open `1_Altimeter`.
-10. Open `2_Pitch_EasyServo`.
+10. Open `2_Pitch`.
 11. Open `3_Rate_Of_Climb_from_Altitude`.
 12. Open `4_Compass_Heading`.
 13. Study `5_Spitfire_Blind_Panel`.
@@ -393,8 +393,8 @@ It already contains:
 
 - the required `#define DCSBIOS_DEFAULT_SERIAL`
 - the correct Easy Mode include
-- `DcsBios::setup();`
-- `DcsBios::loop();`
+- `DcsBios::EasyMode::setup();`
+- `DcsBios::EasyMode::loop();`
 - comments showing where copied lines should be pasted
 
 If you are unsure where copied code belongs, start with this file.
@@ -420,15 +420,15 @@ Open `1_Altimeter` and look at the simplest complete gauge example in the journe
 
 This is where the user first sees a working Easy Mode output object in a very small sketch.
 
-## Step 10: Open 2_Pitch_EasyServo
+## Step 10: Open 2_Pitch
 
-Open `2_Pitch_EasyServo` next.
+Open `2_Pitch` next.
 
 This introduces a centered-zero gauge using a common beginner servo.
 
-## Step 11: Open 3_Rate_Of_Climb_from_Altitude_EasyServo
+## Step 11: Open 3_Rate_Of_Climb_from_Altitude
 
-Open `3_Rate_Of_Climb_from_Altitude_EasyServo` next.
+Open `3_Rate_Of_Climb_from_Altitude` next.
 
 This shows a more advanced idea: creating a useful gauge value from other telemetry when a direct output is missing.
 
@@ -490,8 +490,8 @@ Examples:
 
 - SG90 servo: choose the `DcsBios::EasyMode::Servo_SG90` snippet.
 - Generic servo: choose the `DcsBios::EasyMode::Servo` snippet.
-- Generic stepper: choose a generic stepper snippet.
-- 28BYJ-48 stepper: choose a `28BYJ48` snippet.
+- Generic stepper: choose a `DcsBios::EasyMode::Stepper` snippet.
+- 28BYJ-48 stepper: choose a `DcsBios::EasyMode::Stepper_28BYJ48` snippet.
 
 ## Step 18: Copy The Snippet From Bort-EasyMode
 
@@ -503,7 +503,9 @@ Examples:
 
 - `DcsBios::EasyMode::Servo_SG90 ...`
 - `DcsBios::EasyMode::Stepper ...`
+- `DcsBios::EasyMode::Stepper ..., DcsBios::EasyMode::StepperMode::Wrap`
 - `DcsBios::EasyMode::Stepper_28BYJ48 ...`
+- `DcsBios::EasyMode::Stepper_28BYJ48 ..., DcsBios::EasyMode::StepperMode::Wrap`
 
 ## Step 19: Paste It Into 0_DefaultSerial And Change Only The First Few Things
 
@@ -516,7 +518,7 @@ If the example also tells you to add extra tuning lines such as:
 - `setTrimDeg(...)`
 - `setModulusEnabled(...)`
 
-put those lines inside `setup()`, before `DcsBios::setup();`
+put those lines inside `setup()`, before `DcsBios::EasyMode::setup();`
 
 A beginner will usually only need to change:
 
@@ -540,7 +542,7 @@ Example:
 
 ```cpp
 #define DCSBIOS_DEFAULT_SERIAL
-#include "DcsBiosEasyMode.h"
+#include <DcsBiosEasyMode.h>
 
 DcsBios::EasyMode::Servo_SG90 altimeterNeedle(
     CommonData_ALT_MSL_FT_A,
@@ -549,11 +551,11 @@ DcsBios::EasyMode::Servo_SG90 altimeterNeedle(
 
 void setup() {
     altimeterNeedle.setTrimDeg(3);
-    DcsBios::setup();
+    DcsBios::EasyMode::setup();
 }
 
 void loop() {
-    DcsBios::loop();
+    DcsBios::EasyMode::loop();
 }
 ```
 
@@ -593,12 +595,12 @@ File:
 
 What it is:
 
-- A bounded generic stepper example.
+- A 28BYJ-48 bounded sweep stepper example.
 - A good model for gauges that need more travel than a servo can provide.
 
 Use it when:
 
-- You have a generic 4-wire stepper
+- You have a 28BYJ-48 stepper on a ULN2003 driver board
 - The gauge starts at one end of the scale and moves upward from there
 
 Usually changed by the user:
@@ -615,12 +617,12 @@ Important idea:
 
 Photo placeholder:
 
-- Add photo of a generic stepper and driver board connected to an altimeter dial.
+- Add photo of a 28BYJ-48 and ULN2003 board connected to an altimeter dial.
 
-### 2_Pitch_EasyServo
+### 2_Pitch
 
 File:
-`examples/2_Pitch_EasyServo/2_Pitch_EasyServo.ino`
+`examples/2_Pitch/2_Pitch.ino`
 
 What it is:
 
@@ -646,15 +648,15 @@ Photo placeholder:
 
 - Add photo of a nose-up nose-down pitch gauge with a center mark.
 
-### 3_Rate_Of_Climb_from_Altitude_EasyServo
+### 3_Rate_Of_Climb_from_Altitude
 
 File:
-`examples/3_Rate_Of_Climb_from_Altitude_EasyServo/3_Rate_Of_Climb_from_Altitude_EasyServo.ino`
+`examples/3_Rate_Of_Climb_from_Altitude/3_Rate_Of_Climb_from_Altitude.ino`
 
 What it is:
 
 - An advanced SG90 servo example that creates rate of climb from altitude changes.
-- A natural next step after `2_Pitch_EasyServo`.
+- A natural next step after `2_Pitch`.
 
 Use it when:
 
@@ -683,11 +685,12 @@ File:
 
 What it is:
 
-- A continuous generic stepper example.
+- A 28BYJ-48 wrapping stepper example.
 - A good starting point for repeating 360 degree instruments.
 
 Use it when:
 
+- You have a 28BYJ-48 stepper on a ULN2003 driver board
 - The instrument goes around and around
 - 360 degrees should behave the same as 0 degrees
 
@@ -704,26 +707,25 @@ Important idea:
 
 Photo placeholder:
 
-- Add photo of a compass or heading repeater driven by a generic stepper.
+- Add photo of a 28BYJ-48 turning a compass card or heading repeater.
 
 ## Advanced Examples
 The following examples expand on the lessons learned in examples 0 through 7.
-Unlike the starting examples that use commonly available Steppers (Tiny 28BYJ-48 + ULN2003 Driver chip) and RC Servo Motor SG90/MG90 that have all of it's properties captured in the driver so that you, the user, doesn't have to provide the information.
-In contrast, these examples use the Generic version of EasyStepper and EasyServo where all the physical properties of the Stepper or Servo have to be defined.
+Unlike the starting examples that use beginner-friendly defaults for a 28BYJ-48 + ULN2003 stepper or an SG90/MG90-style servo, these advanced examples use the generic `Stepper` and `Servo` types where you tune more of the hardware behavior yourself.
 
-### 91_Altimeter_EasyStepper
+### 91_Altimeter_Advanced
 
 File:
-`examples/91_Altimeter_EasyStepper/91_Altimeter_EasyStepper.ino`
+`examples/91_Altimeter_Advanced/91_Altimeter_Advanced.ino`
 
 What it is:
 
-- The same altimeter idea as above, but for the common 28BYJ-48 and ULN2003 board.
+- The same altimeter idea as above, but for a generic 4-wire stepper driver.
 
 Use it when:
 
-- You have a 28BYJ-48 stepper
-- You want a beginner-friendly stepper example with fewer setup details
+- You have a generic 4-wire stepper
+- You want the more flexible advanced stepper version
 
 Usually changed by the user:
 
@@ -734,20 +736,47 @@ Usually changed by the user:
 
 Photo placeholder:
 
-- Add photo of a 28BYJ-48 and ULN2003 board driving an altimeter dial.
+- Add photo of a generic stepper driver board driving an altimeter dial.
 
-### 92_Compass_Heading
+### 92_Pitch_Advanced
 
 File:
-`examples/92_Compass_Heading/92_Compass_Heading.ino`
+`examples/92_Pitch_Advanced/92_Pitch_Advanced.ino`
 
 What it is:
 
-- The same heading idea as the generic compass example, but with a 28BYJ-48.
+- A generic servo centered-zero pitch example.
+- The advanced counterpart to `2_Pitch`.
 
 Use it when:
 
-- You have a 28BYJ-48 stepper
+- You have a generic hobby servo instead of using the SG90 shortcut type
+- You want to tune angles, trim, and input range directly in the constructor
+
+Usually changed by the user:
+
+- servo pin
+- minimum and maximum angles
+- direction
+- trim
+- input maximum value
+
+Photo placeholder:
+
+- Add photo of a generic servo driving a centered-zero pitch gauge.
+
+### 94_Compass_Heading_Advanced
+
+File:
+`examples/94_Compass_Heading_Advanced/94_Compass_Heading_Advanced.ino`
+
+What it is:
+
+- The same heading idea as `4_Compass_Heading`, but for a generic 4-wire stepper driver.
+
+Use it when:
+
+- You have a generic 4-wire stepper
 - You want a 360 degree repeating instrument
 
 Usually changed by the user:
@@ -759,7 +788,7 @@ Usually changed by the user:
 
 Photo placeholder:
 
-- Add photo of a 28BYJ-48 turning a compass card or heading pointer.
+- Add photo of a generic stepper turning a compass card or heading pointer.
 
 
 ## Suggested Learning Path
@@ -767,7 +796,7 @@ Photo placeholder:
 For a natural progression through the examples:
 
 - Start with `1_Altimeter` to learn a simple one-way gauge.
-- Move to `2_Pitch_EasyServo` to learn centered-zero gauges.
+- Move to `2_Pitch` to learn centered-zero gauges.
 - Then try `3_Rate_Of_Climb_from_Altitude` to learn how to derive a gauge value from other telemetry.
 - Continue with `4_Compass_Heading`, then the full blind-panel examples.
 
@@ -844,4 +873,3 @@ An important part of that work was research. The AI was able to study the surrou
 That same collaboration also helped identify a broader design problem: DCS-BIOS and Bort were powerful tools, but they often assumed more software knowledge than many builders have or want to have. Many users are strong in aircraft systems, electronics, and physical fabrication, but may not be comfortable with programming language, software abstractions, or reading raw code. A major goal of this project was therefore to reduce that barrier and reshape the experience so it felt more welcoming to non-programmers.
 
 With that goal in mind, the AI helped reshape both the code and the user experience. It contributed to the design and implementation of DCS-BIOS Easy Mode, created example sketches based on real DCS World telemetry, modified Bort so its generated snippets were easier to understand and copy into Arduino IDE, and helped produce beginner-friendly instructions for installing and using the whole toolchain. The result is not only a set of software changes, but also a more accessible workflow for people who want to build virtual cockpit hardware without needing to think like professional software developers.
-

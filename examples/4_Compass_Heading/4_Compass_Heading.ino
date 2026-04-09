@@ -37,7 +37,7 @@ DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
 );
 
 void setup() {
-    compassCard.setInputMaxValue(360);      // CommonData_HDG_DEG is already in degrees
+    compassCard.setInputMaxValue(360);      // CommonData_HDG_DEG is already sent as 0..359 degrees
     // compassCard.setModulusEnabled(false); // Use absolute degrees instead of wrapping at 360
 
     // NOTE: Stepper homing is NOT automatic. To home on startup if you have a
