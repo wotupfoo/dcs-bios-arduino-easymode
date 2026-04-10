@@ -10,7 +10,7 @@
 #include "boardconfig.h"    
 
 /******************************************************************************
- * Spitfire Blind Panel telemetry output.
+ * Mosquito/Spitfire Blind Panel telemetry output.
  ******************************************************************************
  * Top Row of Gauges:
  * - Air Speed Indicated (ASI) with 28BJY-48 Stepper for full 720 degree sweep

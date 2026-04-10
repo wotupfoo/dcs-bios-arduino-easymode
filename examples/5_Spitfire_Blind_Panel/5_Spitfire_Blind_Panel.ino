@@ -6,11 +6,11 @@
  * Arduino Mega2560 and Due are there as examples, but you can modify for any 
  * board by following the pin availability notes and examples in that file.
  */
-// Hint: Put your cursor over boardconfig.h and press F12 to open it
+// Hint: Left-click to put your cursor in the middle of boardconfig.h and press F12 to open it
 #include "boardconfig.h"    
 
 /******************************************************************************
- * Spitfire Blind Panel telemetry output.
+ * Mosquito/Spitfire Blind Panel telemetry output.
  ******************************************************************************
  * Top Row of Gauges:
  * - Air Speed Indicated (ASI) with 28BJY-48 Stepper for full 720 degree sweep
@@ -124,6 +124,15 @@ unsigned int AltimeterHundreds = 0;         // Storage of the 100's of feet need
 unsigned int AltimeterThousands = 0;        // Storage of the 1,000's of feet needle position received from DCS-BIOS
 unsigned int AltimeterTenThousands = 0;     // Storage of the 10,000's of feet needle position received from DCS-BIOS
 
+DcsBios::EasyMode::Stepper_Manual_28BYJ48 altimeter3NeedleStepper(
+    ALTIMETER_STEPPER_PIN1,    // Arduino pin connected to the stepper driver input pin 1
+    ALTIMETER_STEPPER_PIN2,    // Arduino pin connected to the stepper driver input pin 2
+    ALTIMETER_STEPPER_PIN3,    // Arduino pin connected to the stepper driver input pin 3
+    ALTIMETER_STEPPER_PIN4,    // Arduino pin connected to the stepper driver input pin 4
+    ALTIMETER_ZERO_PIN,        // Zero angle detection input pin
+    false                      // inputZeroCentered: false because 0 ft is at 0 degrees
+);
+
 // ALTIMETER Hundreds of Feet Needle
 void onAltimeterhundredsChange(unsigned int newValue) {
     AltimeterHundreds = newValue;
@@ -148,14 +157,6 @@ void onAltimetertensthousandsChange(unsigned int newValue) {
 }
 DcsBios::IntegerBuffer altimetertensthousandsBuffer(SpitfireLFMkIX_ALTIMETERTENSTHOUSANDS, onAltimetertensthousandsChange);
 
-DcsBios::EasyMode::Stepper_Manual_28BYJ48 altimeter3NeedleStepper(
-    ALTIMETER_STEPPER_PIN1,    // Arduino pin connected to the stepper driver input pin 1
-    ALTIMETER_STEPPER_PIN2,    // Arduino pin connected to the stepper driver input pin 2
-    ALTIMETER_STEPPER_PIN3,    // Arduino pin connected to the stepper driver input pin 3
-    ALTIMETER_STEPPER_PIN4,    // Arduino pin connected to the stepper driver input pin 4
-    ALTIMETER_ZERO_PIN,        // Zero angle detection input pin
-    false                      // inputZeroCentered: false because 0 ft is at 0 degrees
-);
 // *******************************************************************************
 // GYROSCOPIC DIRECTIONAL INDICATOR (DI) with adjustment rotary encoder
 // *******************************************************************************

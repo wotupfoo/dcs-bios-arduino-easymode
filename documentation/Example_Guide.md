@@ -115,8 +115,6 @@ Examples:
 
 **DCS-BIOS Skunkwork Releases:** `https://github.com/DCS-Skunkworks/dcs-bios/releases`
 
-# ***INSERT SCREEN GRABS OF INSTALLING DCS-BIOS FOR DCS AND FOR ARDUINO***
-
 ## DCS-BIOS Easy Mode
 
 This project addresses a big problem with DCS-BIOS (Original and Skunkworks). They express the connections in terms of highly technical numbers instead of being in terms of what the physical control is doing. A Pitch Gauge for example, needs to be expressed in terms of how many degrees the needle needs to deflect up and down and that the zero position is in the middle. **DCS-BIOS Easy Mode** makes the setup parameters of these interfaces into the information that a real sim-pit builder thinks about.
@@ -135,7 +133,23 @@ Instead of thinking in low-level pulse widths or motor internals, the idea is to
 - clockwise or counter-clockwise
 - zero at one end or zero in the middle
 
-# ***INSERT SCREEN GRABS OF INSTALLING DCS-BIOS-EASY-MODE FOR ARDUINO***
+### DCS-BIOS Easy Mode coding snippets vs DCS-BIOS coding snippets
+If you have used DCS-BIOS is the past you'll be familar with the input and output methods starting with:
+`DcsBios::` followed by an input like `DcsBios:Switch2Pos( )`
+
+Using *Dcs-Bios Easy Mode** is the exact same for all the inputs, it just adds a few new outputs (Steppers and Servos) and behind the scenes fixes some problems with DCS-BIOS.
+
+Where you are used to seeing `DcsBios::` you'll now use `DcsBios:EasyMode::`
+
+For example, where a simple 2 position switch was used like this:
+
+`DcsBios::Switch2Pos tankPress("TANK_PRESS", TANK_PRESSURE_PIN);`
+
+It's now used like this (note the addition of `EasyMode::` after the `DcsBios::`):
+
+`DcsBios::EasyMode::Switch2Pos tankPress("TANK_PRESS", TANK_PRESSURE_PIN);`
+
+So, if you have any existing code you can either leave it alone and mix `DcsBios::` and `DcsBios::EasyMode::` usage or add the missiing **EasyMode::** so that all of your panel uses EasyMode. This is preferable because EasyMode fixes underlying problems in Dcs-Bios such as the hardware switch position not matching the simualator switch position until you change the switch.
 
 ## Bort-EasyMode
 
