@@ -213,7 +213,12 @@ void setup() {
                           // Requires zero switch on AIRSPEED_ZERO_PIN (optional if no switch)
 
     // Artificial Horizon
-    ahorizonbank.setMaxAngle(30);
+    ahorizonbank.setMinAngle(-15);
+    ahorizonbank.setTrimDeg(90);
+    ahorizonbank.setMaxAngle(15);
+
+    ahorizonpitch.setMinAngle(-15);
+    ahorizonpitch.setTrimDeg(90);
     ahorizonpitch.setMaxAngle(30);
 
     // Rate of Climb
