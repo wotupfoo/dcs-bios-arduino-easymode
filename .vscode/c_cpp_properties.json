@@ -1,24 +1,161 @@
 {
-    "configurations": [
-        {
-            "name": "Win32",
-            "includePath": [
-                "${workspaceFolder}/**",
-                "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/cores/**",
-                "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/libraries/**",
-                "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/system/**",
-                "G:/My Drive/EmbeddedElectronics/Arduino/hardware/Arduino_STM32/STM32F1/variants/generic_stm32f103c/**",
-                "G:/My Drive/EmbeddedElectronics/Arduino/libraries/**",
-                "C:/Users/${env:USERNAME}/AppData/Local/Arduino15/libraries"
-            ],
-            "defines": [
-                "ARDUINO=10607"
-            ],
-            "windowsSdkVersion": "10.0.19041.0",
-            "cStandard": "c17",
-            "cppStandard": "c++17",
-            "intelliSenseMode": "gcc-arm"
-        }
-    ],
-    "version": 4
+    "env":  {
+                "Arduino_Sketch_Dir":  "G:/My Drive/EmbeddedElectronics/Arduino"
+            },
+    "configurations":  [
+                           {
+                               "name":  "OpenXR Runtime (MSVC x64)",
+                               "configurationProvider":  "ms-vscode.cmake-tools",
+                               "mergeConfigurations":  true,
+                               "compilerPath":  "${env:VCToolsInstallDir}/bin/Hostx64/x64/cl.exe",
+                               "includePath":  [
+                                                   "${workspaceFolder}/runtime",
+                                                   "${workspaceFolder}/tools/control_app",
+                                                   "${workspaceFolder}/tools/head_tracker",
+                                                   "${workspaceFolder}/build-vs2022/generated_openxr",
+                                                   "${workspaceFolder}/external/OpenXR-SDK-Source/src/common",
+                                                   "${workspaceFolder}/external/nlohmann_json/include",
+                                                   "${env:VCToolsInstallDir}/include",
+                                                   "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/um",
+                                                   "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/shared",
+                                                   "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/ucrt",
+                                                   "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/winrt",
+                                                   "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/cppwinrt",
+                                                   "${env:OpenCV_Dir}/include"
+                                               ],
+                               "browse":  {
+                                              "path":  [
+                                                           "${workspaceFolder}/runtime",
+                                                           "${workspaceFolder}/tools/control_app",
+                                                           "${workspaceFolder}/tools/head_tracker",
+                                                           "${workspaceFolder}/build-vs2022/generated_openxr",
+                                                           "${workspaceFolder}/external/OpenXR-SDK-Source/src/common",
+                                                           "${workspaceFolder}/external/nlohmann_json/include",
+                                                           "${env:VCToolsInstallDir}/include",
+                                                           "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/um",
+                                                           "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/shared",
+                                                           "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/ucrt",
+                                                           "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/winrt",
+                                                           "${env:WindowsSdkDir}/Include/${env:WindowsSDKVersion}/cppwinrt",
+                                                           "${env:OpenCV_Dir}"                                                       ],
+                                              "limitSymbolsToIncludedHeaders":  true
+                                          },
+                               "defines":  [
+                                               "WIN32_LEAN_AND_MEAN",
+                                               "NOMINMAX",
+                                               "XR_USE_PLATFORM_WIN32",
+                                               "XR_USE_GRAPHICS_API_D3D11",
+                                               "XR_USE_GRAPHICS_API_OPENGL"
+                                           ],
+                               "intelliSenseMode":  "windows-msvc-x64",
+                               "cStandard":  "c17",
+                               "cppStandard":  "c++20"
+                           },
+                           {
+                               "name":  "Arduino AVR",
+                               "compilerPath":  "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/avr-gcc/7.3.0-atmel3.6.1-arduino7/bin/avr-g++.exe",
+                               "includePath":  [
+                                                   "${workspaceFolder}/**",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/**/3.3.8/include/**",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/1.8.7/cores/arduino",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/1.8.7/variants/**",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/arduino/hardware/avr/1.8.7/libraries/**",
+                                                   "${Arduino_Sketch_Dir}/libraries"
+                                               ],
+                               "defines":  [
+                                                  "ARDUINO=10607",
+                                                  "ARDUINO_ARCH_AVR",
+                                                  "ARDUINO_AVR_UNO",
+                                                  "ARDUINO_BOARD=\"UNO\"",
+                                                  "ARDUINO_VARIANT=\"standard\""
+                                           ],
+                               "compilerArgs":  [
+                                                    "-mmcu=atmega328p",
+                                                    "-DF_CPU=16000000L",
+                                                    "-DARDUINO_ARCH_AVR",
+                                                    "-DARDUINO_AVR_UNO",
+                                                    "-DARDUINO_BOARD=\"UNO\"",
+                                                    "-DARDUINO_VARIANT=\"standard\"",
+                                                    "-I${workspaceFolder}/**",
+                                                    "-I${Arduino_Sketch_Dir}/libraries"
+                                                ],
+                               "cStandard":  "gnu11",
+                               "cppStandard":  "gnu++11"
+                           },
+                           {
+                               "name":  "Arduino ESP32",
+                               "compilerPath":  "${env:LOCALAPPDATA}/Arduino15/packages/esp32/tools/esp-x32/2601/bin/xtensa-esp32-elf-g++.exe",
+                               "includePath":  [
+                                                   "${workspaceFolder}/firmware/3d_glasses_bluetooth_emitter_esp",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/tools/**/3.3.8/include/**",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/hardware/esp32/**/cores/esp32",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/hardware/esp32/**/variants/esp32",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/hardware/esp32/**/tools/sdk/esp32/include/**",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/hardware/esp32/**/libraries/BLE/src",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/hardware/esp32/**/libraries/BluetoothSerial/src",
+                                                   "${env:LOCALAPPDATA}/Arduino15/packages/esp32/hardware/esp32/**/libraries/**",
+                                                   "${Arduino_Sketch_Dir}/libraries"
+                                               ],
+                               "defines":  [
+                                               "ARDUINO=10607",
+                                               "ARDUINO_ARCH_ESP32",
+                                               "ARDUINO_ESP32_DEV",
+                                               "ARDUINO_BOARD=\"ESP32_DEV\"",
+                                               "ARDUINO_VARIANT=\"esp32\"",
+                                               "ESP32",
+                                               "CONFIG_IDF_TARGET_ESP32",
+                                               "CONFIG_IDF_TARGET=\"esp32\"",
+                                               "CORE_DEBUG_LEVEL=0",
+                                               "ARDUINO_RUNNING_CORE=1",
+                                               "ARDUINO_EVENT_RUNNING_CORE=1",
+                                               "F_CPU=240000000L"
+                                            ],
+                               "compilerArgs":  [
+                                                    "-mlongcalls"
+                                                ],
+                               "intelliSenseMode":  "windows-gcc-x64",
+                               "cStandard":  "gnu11",
+                               "cppStandard":  "gnu++17"
+                           },
+                           {
+                               "name":  "Arduino STM32F1xx",
+                               "compilerPath":  "${env:LOCALAPPDATA}/Arduino15/packages/arduino/tools/arm-none-eabi-gcc/4.8.3-2014q1/bin/arm-none-eabi-g++",
+                               "includePath":  [
+                                                   "${workspaceFolder}/**",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/system/libmaple",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/system/libmaple/include",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/system/libmaple/stm32f1/include",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/system/libmaple/usb/stm32f1",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/system/libmaple/usb/usb_lib",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/cores/maple",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/variants/generic_stm32f103c",
+                                                   "${Arduino_Sketch_Dir}/hardware/Arduino_STM32/STM32F1/libraries/USBComposite",
+                                                   "${Arduino_Sketch_Dir}/libraries"
+                                               ],
+                               "defines":  [
+                                               "DEBUG_LEVEL=DEBUG_NONE",
+                                               "BOARD_generic_stm32f103c",
+                                               "VECT_TAB_ADDR=0x8000000",
+                                               "ERROR_LED_PORT=GPIOC",
+                                               "ERROR_LED_PIN=13",
+                                               "F_CPU=72000000L",
+                                               "ARDUINO=10607",
+                                               "ARDUINO_GENERIC_STM32F103C",
+                                               "ARDUINO_ARCH_STM32F1",
+                                               "CONFIG_MAPLE_MINI_NO_DISABLE_DEBUG=1",
+                                               "SERIAL_USB",
+                                               "GENERIC_BOOTLOADER",
+                                               "MCU_STM32F103C8",
+                                               "__STM32F1__"
+                                           ],
+                               "compilerArgs":  [
+                                                    "-mcpu=cortex-m3",
+                                                    "-mthumb",
+                                                    "-march=armv7-m"
+                                                ],
+                               "cStandard":  "gnu11",
+                               "cppStandard":  "gnu++11"
+                           }
+                       ],
+    "version":  4
 }
