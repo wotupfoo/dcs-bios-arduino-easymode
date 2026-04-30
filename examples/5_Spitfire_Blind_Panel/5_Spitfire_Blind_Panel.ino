@@ -242,9 +242,17 @@ void setup() {
     DIStepper.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
                       // Requires zero switch on DI_ZERO_PIN (optional if no switch)
 
-    // Slip and Turn
-    sideslipgauge.setMaxAngle(30);
-    turngauge.setMaxAngle(45);
+    // Slip Gauge
+    sideslipgauge.setDirection(-1);
+    sideslipgauge.setMinAngle(-15);
+    sideslipgauge.setTrimDeg(90);
+    sideslipgauge.setMaxAngle(15);
+
+    // Turn Gauge
+    turngauge.setDirection(-1);
+    turngauge.setMinAngle(-22);
+    turngauge.setTrimDeg(90);
+    turngauge.setMaxAngle(22);
 
     DcsBios::EasyMode::setup();
 }
