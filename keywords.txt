@@ -1,9 +1,96 @@
+# Syntax Coloring Map For DCS-BIOS-Easy-Mode
+
+# Datatypes / namespaces
 DcsBiosEasyMode	KEYWORD1
 DcsBios	KEYWORD1
+EasyMode	KEYWORD1
+
+ActionButton	KEYWORD1
+ToggleButton	KEYWORD1
+MatActionButton	KEYWORD1
+MatActionButtonToggle	KEYWORD1
+MatActionButtonSet	KEYWORD1
+DualModeButton	KEYWORD1
+
+Switch2Pos	KEYWORD1
+Switch3Pos	KEYWORD1
+SwitchMultiPos	KEYWORD1
+SwitchWithCover2Pos	KEYWORD1
+Matrix2Pos	KEYWORD1
+Matrix3Pos	KEYWORD1
+MatSwitch2Pos	KEYWORD1
+MatSwitch3Pos	KEYWORD1
+
+AnalogMultiPos	KEYWORD1
+RotarySwitch	KEYWORD1
+Potentiometer	KEYWORD1
+RotaryEncoder	KEYWORD1
+RotaryAcceleratedEncoder	KEYWORD1
+MatRotaryEncoder	KEYWORD1
+EmulatedConcentricRotaryEncoder	KEYWORD1
+RotarySyncingPotentiometer	KEYWORD1
+InvertedRotarySyncingPotentiometer	KEYWORD1
+BcdWheel	KEYWORD1
+RadioPreset	KEYWORD1
+
+IntegerBuffer	KEYWORD1
+StringBuffer	KEYWORD1
+LED	KEYWORD1
+Dimmer	KEYWORD1
+
 Servo	KEYWORD1
 Servo_SG90	KEYWORD1
+ServoOutput	KEYWORD1
+
 Stepper	KEYWORD1
 StepperMode	KEYWORD1
 Stepper_Manual	KEYWORD1
 Stepper_28BYJ48	KEYWORD1
 Stepper_Manual_28BYJ48	KEYWORD1
+
+# Functions / methods
+refreshInterval	KEYWORD2
+getRefreshInterval	KEYWORD2
+tryToSendDcsBiosMessage	KEYWORD2
+sendDcsBiosMessage	KEYWORD2
+resetAllStates	KEYWORD2
+
+home	KEYWORD2
+homeDeg	KEYWORD2
+isHomed	KEYWORD2
+run	KEYWORD2
+setPosition	KEYWORD2
+setPositionDeg	KEYWORD2
+
+setMinAngle	KEYWORD2
+setMaxAngle	KEYWORD2
+setDirection	KEYWORD2
+setTrimDeg	KEYWORD2
+setZeroOffsetDeg	KEYWORD2
+setInputMaxValue	KEYWORD2
+setInputZeroCentered	KEYWORD2
+setInputZeroInMiddleOfRange	KEYWORD2
+setModulusEnabled	KEYWORD2
+setUseModulo	KEYWORD2
+
+setHomingBackoffSteps	KEYWORD2
+setHomingBackoffDeg	KEYWORD2
+setHomingBackoffDegs	KEYWORD2
+setHomingStartOffsetSteps	KEYWORD2
+setHomingStartOffsetDeg	KEYWORD2
+setHomingStartOffsetDegs	KEYWORD2
+
+setMaxRpm	KEYWORD2
+getMaxRpm	KEYWORD2
+setAccelerationRpmPerSec	KEYWORD2
+setFaultCallback	KEYWORD2
+hasTimingFault	KEYWORD2
+clearTimingFault	KEYWORD2
+setFaultToleranceMultiplier	KEYWORD2
+
+# Constants / enum values
+NoPin	LITERAL1
+CW	LITERAL1
+CCW	LITERAL1
+Sweep	LITERAL1
+Wrap	LITERAL1
