@@ -242,9 +242,17 @@ void setup() {
     DIStepper.home(); // NOTE: Homing is NOT automatic; you must call home() explicitly.
                       // Requires zero switch on DI_ZERO_PIN (optional if no switch)
 
-    // Slip and Turn
-    sideslipgauge.setMaxAngle(30);
-    turngauge.setMaxAngle(45);
+    // Slip Gauge with +/- 15 degress of swing
+    sideslipgauge.setDirection(true); // Set to true to reverse the needle direction
+    sideslipgauge.setMinAngle(-15);   // -15 deg on the servo corresponds to full left slip
+    sideslipgauge.setTrimDeg(90);     // "Zero" is at 90 deg on the servo
+    sideslipgauge.setMaxAngle(15);    // +15 deg on the servo corresponds to full right slip
+
+    // Slip Gauge with +/- 22 degress of swing
+    turngauge.setDirection(true);   // Set to true to reverse the needle direction
+    turngauge.setMinAngle(-22);      // -22 deg on the servo corresponds to full left turn
+    turngauge.setTrimDeg(90);        // "Zero" is at 90 deg on the servo
+    turngauge.setMaxAngle(22);      // +22 deg on the servo corresponds to full right turn
 
     DcsBios::EasyMode::setup();
 }
