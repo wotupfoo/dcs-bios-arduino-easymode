@@ -213,7 +213,12 @@ void setup() {
                           // Requires zero switch on AIRSPEED_ZERO_PIN (optional if no switch)
 
     // Artificial Horizon
-    ahorizonbank.setMaxAngle(30);
+    ahorizonbank.setMinAngle(-15);
+    ahorizonbank.setTrimDeg(90);
+    ahorizonbank.setMaxAngle(15);
+
+    ahorizonpitch.setMinAngle(-15);
+    ahorizonpitch.setTrimDeg(90);
     ahorizonpitch.setMaxAngle(30);
 
     // Rate of Climb
@@ -243,13 +248,13 @@ void setup() {
                       // Requires zero switch on DI_ZERO_PIN (optional if no switch)
 
     // Slip Gauge with +/- 15 degress of swing
-    sideslipgauge.setDirection(true); // Set to true to reverse the needle direction
+    sideslipgauge.setDirection(-1); // Set to true to reverse the needle direction
     sideslipgauge.setMinAngle(-15);   // -15 deg on the servo corresponds to full left slip
     sideslipgauge.setTrimDeg(90);     // "Zero" is at 90 deg on the servo
     sideslipgauge.setMaxAngle(15);    // +15 deg on the servo corresponds to full right slip
 
     // Slip Gauge with +/- 22 degress of swing
-    turngauge.setDirection(true);   // Set to true to reverse the needle direction
+    turngauge.setDirection(-1);   // Set to true to reverse the needle direction
     turngauge.setMinAngle(-22);      // -22 deg on the servo corresponds to full left turn
     turngauge.setTrimDeg(90);        // "Zero" is at 90 deg on the servo
     turngauge.setMaxAngle(22);      // +22 deg on the servo corresponds to full right turn
