@@ -33,11 +33,20 @@ if defined ARDUINO_FQBN (
 ) else (
     echo FQBN: sketch.yaml default_fqbn
 )
+if not "%~3"=="" echo Port: %~3
 echo Uploading %1
 if defined ARDUINO_FQBN (
-    "%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --build-path "%SKETCH_BUILD_PATH%" --fqbn "%ARDUINO_FQBN%" --verbose "%~1"
+    if "%~3"=="" (
+        "%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --build-path "%SKETCH_BUILD_PATH%" --fqbn "%ARDUINO_FQBN%" --verbose "%~1"
+    ) else (
+        "%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --build-path "%SKETCH_BUILD_PATH%" --fqbn "%ARDUINO_FQBN%" --port "%~3" --verbose "%~1"
+    )
 ) else (
-    "%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --build-path "%SKETCH_BUILD_PATH%" --verbose "%~1"
+    if "%~3"=="" (
+        "%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --build-path "%SKETCH_BUILD_PATH%" --verbose "%~1"
+    ) else (
+        "%ARDUINO_CLI%" --config-file "%ARDUINO_CONFIG_FILE%" upload --build-path "%SKETCH_BUILD_PATH%" --port "%~3" --verbose "%~1"
+    )
 )
 echo Done
 goto :eof
