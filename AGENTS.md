@@ -30,6 +30,8 @@ This file is guidance for AI coding agents† such as OpenAI Codex when they wor
 
 - Prefer root-cause fixes over local workarounds.
 - Preserve existing sketch compatibility unless the user explicitly asks for an API break.
+- Design Easy Mode APIs for non-programmers building hardware panels. Keep programming details hidden inside the classes, prefer Arduino-familiar terms such as `HIGH`, `LOW`, pins, degrees, and RPM, and avoid requiring users to understand C++ enum/class syntax for normal sketch use.
+- Easy Mode APIs are up for grabs while in development. Prefer the clearest beginner-facing sketch syntax over preserving temporary constructor argument order, and treat compatibility as negotiable until an API has been released or documented as stable.
 - Do not edit example sketches unless the task requires it.
 - For stepper changes, check both normal DCS-driven steppers and manual steppers when relevant.
 - For public API changes, update or compile at least one representative example.

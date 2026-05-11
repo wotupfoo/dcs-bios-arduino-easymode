@@ -11,7 +11,7 @@
  * driver board setup, so the constructor can stay focused on the DCS-BIOS
  * source and the four motor pins.
  *
- * DcsBios::EasyMode::Stepper_28BYJ48 in StepperMode::Wrap wraps through
+ * DcsBios::EasyMode::Stepper_28BYJ48 with wrapAround() wraps through
  * 360 degrees smoothly. This heading source is already angle-like, so setup()
  * sets inputMaxValue to 360.
  * By default it wraps with modulus 360 and takes the shortest path, so
@@ -22,8 +22,8 @@
  * example uses false. A turn gauge style signal with centered zero would
  * typically use true.
  *
- * If you are driving a geared mechanism and want absolute multi-turn motion instead,
- * call compassCard.setModulusEnabled(false) in setup().
+ * If you are driving a mechanism that should stay between 0 and 360 degrees
+ * instead, leave out the compassCard.wrapAround() line in setup().
  */
 DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
     CommonData_HDG_DEG, // Telemetry source: heading in degrees
@@ -32,13 +32,12 @@ DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
     10,                // 28BYJ-48 / ULN2003 input pin 3
     11,                // 28BYJ-48 / ULN2003 input pin 4
     12,                // Zero angle detection input pin
-    false,                                  // Zero is in the middle of the range
-    DcsBios::EasyMode::StepperMode::Wrap    // Wrap through 360 degrees smoothly
+    LOW                // Zero switch is active when the pin reads LOW
 );
 
 void setup() {
+    compassCard.wrapAround();               // Wrap through 360 degrees smoothly
     compassCard.setInputMaxValue(360);      // CommonData_HDG_DEG is already sent as 0..359 degrees
-    // compassCard.setModulusEnabled(false); // Use absolute degrees instead of wrapping at 360
 
     // NOTE: Stepper homing is NOT automatic. To home on startup if you have a
     // zero switch on pin 12, uncomment the line below:

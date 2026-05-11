@@ -17,7 +17,7 @@ DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
     10,                     // 28BYJ-48 / ULN2003 input pin 3
     11,                     // 28BYJ-48 / ULN2003 input pin 4
     12,                     // Zero angle detection input pin
-    false                   // Zero is in the middle of the range
+    LOW                     // Zero switch is active when the pin reads LOW
 );
 DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
     CommonData_HDG_DEG, // Telemetry source: heading in degrees
@@ -26,8 +26,7 @@ DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
     15,                 // 28BYJ-48 / ULN2003 input pin 3
     16,                 // 28BYJ-48 / ULN2003 input pin 4
     DcsBios::EasyMode::NoPin,
-    false,                                   // Zero is in the middle of the range
-    DcsBios::EasyMode::StepperMode::Wrap     // Wrap through 360 degrees smoothly
+    LOW
 );
 
 /* When any Stepper Motor can't keep up it will call this function.
@@ -54,6 +53,7 @@ void setup() {
     altimeterNeedle.setMaxAngle(360);
     altimeterNeedle.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
 
+    compassCard.wrapAround();                                  // Wrap through 360 degrees smoothly
     compassCard.setInputMaxValue(360);                         // CommonData_HDG_DEG is already in degrees
     compassCard.setFaultCallback(onStepperTimingFault);    // Turn on fault checking
 

@@ -46,9 +46,6 @@
  * put an 'f' after the number to tell the computer it's a decimal number ("floating point").
  * So, 65,535 max alititude becomes 235800.0f max angle in degrees.
  *
- * The last true/false setting tells the library whether zero is at the start
- * of the scale or in the middle of it. Altitude starts at the low end of the
- * range, so this example uses false.
  */
 DcsBios::EasyMode::Stepper altimeterNeedle(
     CommonData_ALT_MSL_FT_A, // Telemetry source: altitude above mean sea level in feet
@@ -57,7 +54,7 @@ DcsBios::EasyMode::Stepper altimeterNeedle(
     10,                     // Stepper driver input pin 3
     11,                     // Stepper driver input pin 4
     12,                     // Zero angle detection input pin
-    false                   // Zero is in the middle of the range
+    LOW                     // Zero switch is active when the pin reads LOW
 );
 
 void setup() {

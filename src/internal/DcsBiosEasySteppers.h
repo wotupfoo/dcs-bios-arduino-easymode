@@ -14,7 +14,8 @@ template<long STEPS_PER_OUTPUT_REV,
          int DEFAULT_MAX_RPM_X10,
          int DEFAULT_ACCEL_RPM_PER_SEC_X10,
          int DEFAULT_HOMING_RPM_X10,
-         bool SWAP_MIDDLE_PINS = false>
+         bool SWAP_MIDDLE_PINS = false,
+         int CLOCKWISE_STEP_SIGN = 1>
 struct StepperProfile {
     static constexpr long kStepsPerOutputRev = STEPS_PER_OUTPUT_REV;
     static constexpr uint8_t kInterface = ACCELSTEPPER_INTERFACE;
@@ -22,6 +23,8 @@ struct StepperProfile {
     static constexpr float kDefaultAccelRpmPerSec = DEFAULT_ACCEL_RPM_PER_SEC_X10 / 10.0f;
     static constexpr float kDefaultHomingRpm = DEFAULT_HOMING_RPM_X10 / 10.0f;
     static constexpr bool kSwapMiddlePins = SWAP_MIDDLE_PINS;
+    static constexpr long kClockwiseStepSign = (CLOCKWISE_STEP_SIGN < 0) ? -1L : 1L;
+    static constexpr int8_t kDefaultHomeDirection = (CLOCKWISE_STEP_SIGN < 0) ? 1 : -1;
 };
 
 // Generic directly-driven 4-wire stepper defaults.
@@ -32,30 +35,27 @@ using GenericStepperProfile = StepperProfile<
     AccelStepper::FULL4WIRE,
     60,   // 6.0 RPM normal running speed
     120,  // 12.0 RPM/sec acceleration
-    10,   // 1.0 RPM homing speed
+    30,   // 3.0 RPM homing speed fallback
     false
 >;
 
 // 28BYJ-48 on a ULN2003 board.
-// 4096 half-steps per output revolution is the common hobby value.
+// 2048 full-steps per output revolution trades resolution for higher torque.
 using Stepper28Byj48Profile = StepperProfile<
-    4096,
-    AccelStepper::HALF4WIRE,
-    80,   // 8.0 RPM normal running speed
+    2048,
+    AccelStepper::FULL4WIRE,
+    160,  // 16.0 RPM normal running speed
     200,  // 20.0 RPM/sec acceleration
-    10,   // 1.0 RPM homing speed
-    true  // swap the middle pins for AccelStepper
+    80,   // 8.0 RPM homing speed fallback
+    true, // swap the middle pins for AccelStepper
+    1     // positive degree homing offsets are clockwise at the gearbox shaft
 >;
-
-enum class EasyModeStepperMode {
-    Sweep,
-    Wrap
-};
 
 template<typename ProfileT>
 class EasyStepperOutputT : public Int16Buffer {
 public:
     static constexpr uint8_t PIN_NONE = 0xFF;
+    static constexpr long kDefaultHomingBackoffSteps = 100L;
     typedef void (*FaultCallback)(
         unsigned int address,
         unsigned long serviceGapUs,
@@ -65,8 +65,12 @@ public:
 private:
     enum HomeState {
         HOME_NONE,
-        HOME_SEEK_SWITCH,
+        HOME_START_OFFSET,
+        HOME_COARSE_SEEK_SWITCH,
+        HOME_BACK_OFF_SWITCH,
         HOME_RELEASE_SWITCH,
+        HOME_FINE_SEEK_SWITCH,
+        HOME_FAILED,
         HOME_DONE
     };
 
@@ -93,9 +97,11 @@ private:
     bool inputZeroCentered_;
 
     uint8_t zeroPin_;
-    bool zeroActiveLow_;
+    uint8_t zeroActiveState_;
     int8_t homeDirection_;
     float zeroOffsetDeg_;
+    long homingStartOffsetSteps_;
+    long homingBackoffSteps_;
     HomeState homeState_;
 
     static float rpmToStepsPerSecond(float rpm) {
@@ -187,15 +193,77 @@ private:
     bool isZeroActive() const {
         if (zeroPin_ == PIN_NONE) return false;
         int value = digitalRead(zeroPin_);
-        return zeroActiveLow_ ? (value == LOW) : (value == HIGH);
+        return value == zeroActiveState_;
     }
 
     long angleDegToSteps(float angleDeg) const {
         return roundToLong((angleDeg / 360.0f) * (float)ProfileT::kStepsPerOutputRev);
     }
 
+    long homingOffsetDegToSteps(float angleDeg) const {
+        return angleDegToSteps(angleDeg) * ProfileT::kClockwiseStepSign;
+    }
+
+    float fineHomingRpm() const {
+        float rpm = maxRpm_ * 0.5f;
+        return (rpm > 0.0f) ? rpm : ProfileT::kDefaultHomingRpm;
+    }
+
     long zeroOffsetSteps() const {
         return angleDegToSteps(zeroOffsetDeg_);
+    }
+
+    long signedHomeDirection() const {
+        return (homeDirection_ < 0) ? -1L : 1L;
+    }
+
+    void setHomingSpeedTowardSwitch(float stepsPerSecond) {
+        stepper_.setSpeed((homeDirection_ < 0) ? -stepsPerSecond : stepsPerSecond);
+    }
+
+    void setHomingSpeedAwayFromSwitch(float stepsPerSecond) {
+        stepper_.setSpeed((homeDirection_ < 0) ? stepsPerSecond : -stepsPerSecond);
+    }
+
+    void startHomingSeek() {
+        if (isZeroActive()) {
+            startBackoffFromSwitch();
+        } else {
+            homeState_ = HOME_COARSE_SEEK_SWITCH;
+        }
+    }
+
+    void startBackoffFromSwitch() {
+        if (homingBackoffSteps_ <= 0L) {
+            homeState_ = HOME_RELEASE_SWITCH;
+            return;
+        }
+
+        stepper_.moveTo(stepper_.currentPosition() - (signedHomeDirection() * homingBackoffSteps_));
+        homeState_ = HOME_BACK_OFF_SWITCH;
+    }
+
+    void finishHoming() {
+        stepper_.setCurrentPosition(zeroOffsetSteps());
+        stepper_.moveTo(zeroOffsetSteps());
+        homeState_ = HOME_DONE;
+    }
+
+    void failHoming() {
+        stepper_.setSpeed(0.0f);
+        stepper_.stop();
+        homeState_ = HOME_FAILED;
+    }
+
+    void startHomingWithOffset(long startOffsetSteps) {
+        if (zeroPin_ == PIN_NONE) return;
+        if (startOffsetSteps == 0L) {
+            startHomingSeek();
+            return;
+        }
+
+        stepper_.move(startOffsetSteps);
+        homeState_ = HOME_START_OFFSET;
     }
 
     long rawToBoundedSteps(unsigned int raw) const {
@@ -259,30 +327,55 @@ private:
     }
 
     void runHoming() {
-        if (homeState_ == HOME_DONE || homeState_ == HOME_NONE) return;
+        if (homeState_ == HOME_DONE || homeState_ == HOME_NONE || homeState_ == HOME_FAILED) return;
 
-        float homingSpeed = rpmToStepsPerSecond(ProfileT::kDefaultHomingRpm);
+        float coarseSpeed = rpmToStepsPerSecond(maxRpm_);
+        float homingSpeed = rpmToStepsPerSecond(fineHomingRpm());
 
-        if (homeState_ == HOME_SEEK_SWITCH) {
+        if (homeState_ == HOME_START_OFFSET) {
+            if (stepper_.distanceToGo() != 0L) {
+                stepper_.run();
+                return;
+            }
+
+            startHomingSeek();
+        }
+
+        if (homeState_ == HOME_COARSE_SEEK_SWITCH) {
             if (isZeroActive()) {
-                homeState_ = HOME_RELEASE_SWITCH;
+                startBackoffFromSwitch();
             } else {
-                stepper_.setSpeed((homeDirection_ < 0) ? -homingSpeed : homingSpeed);
+                setHomingSpeedTowardSwitch(coarseSpeed);
                 stepper_.runSpeed();
                 return;
             }
         }
 
-        if (homeState_ == HOME_RELEASE_SWITCH) {
-            if (isZeroActive()) {
-                stepper_.setSpeed((homeDirection_ < 0) ? homingSpeed : -homingSpeed);
-                stepper_.runSpeed();
+        if (homeState_ == HOME_BACK_OFF_SWITCH) {
+            if (stepper_.distanceToGo() != 0L) {
+                stepper_.run();
                 return;
             }
 
-            stepper_.setCurrentPosition(zeroOffsetSteps());
-            stepper_.moveTo(zeroOffsetSteps());
-            homeState_ = HOME_DONE;
+            homeState_ = HOME_RELEASE_SWITCH;
+        }
+
+        if (homeState_ == HOME_RELEASE_SWITCH) {
+            if (isZeroActive()) {
+                failHoming();
+                return;
+            }
+
+            homeState_ = HOME_FINE_SEEK_SWITCH;
+        }
+
+        if (homeState_ == HOME_FINE_SEEK_SWITCH) {
+            if (isZeroActive()) {
+                finishHoming();
+            } else {
+                setHomingSpeedTowardSwitch(homingSpeed);
+                stepper_.runSpeed();
+            }
         }
     }
 
@@ -310,9 +403,17 @@ private:
     }
 
     void updateExpectedStepIntervalUs() {
+        if (homeState_ == HOME_FAILED) {
+            lastExpectedStepIntervalUs_ = 0UL;
+            return;
+        }
+
         if (homeState_ != HOME_DONE && homeState_ != HOME_NONE) {
+            float expectedSpeed = (homeState_ == HOME_FINE_SEEK_SWITCH)
+                ? rpmToStepsPerSecond(fineHomingRpm())
+                : rpmToStepsPerSecond(maxRpm_);
             lastExpectedStepIntervalUs_ = stepsPerSecondToIntervalUs(
-                rpmToStepsPerSecond(ProfileT::kDefaultHomingRpm)
+                expectedSpeed
             );
             return;
         }
@@ -334,7 +435,7 @@ private:
         float maxRpm,
         float accelRpmPerSec,
         uint8_t zeroPin,
-        bool zeroActiveLow,
+        uint8_t zeroActiveState,
         int8_t homeDirection,
         float zeroOffsetDeg,
         unsigned int inputMaxValue
@@ -349,9 +450,11 @@ private:
         reverse_ = reverse;
         inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;
         zeroPin_ = zeroPin;
-        zeroActiveLow_ = zeroActiveLow;
+        zeroActiveState_ = (zeroActiveState == HIGH) ? HIGH : LOW;
         homeDirection_ = (homeDirection < 0) ? -1 : 1;
         zeroOffsetDeg_ = zeroOffsetDeg;
+        homingStartOffsetSteps_ = 0L;
+        homingBackoffSteps_ = kDefaultHomingBackoffSteps;
         inputZeroCentered_ = false;
         maxRpm_ = maxRpm;
         faultCallback_ = nullptr;
@@ -367,8 +470,8 @@ private:
         if (zeroPin_ == PIN_NONE) {
             homeState_ = HOME_DONE;
         } else {
-            pinMode(zeroPin_, zeroActiveLow_ ? INPUT_PULLUP : INPUT);
-            homeState_ = isZeroActive() ? HOME_RELEASE_SWITCH : HOME_SEEK_SWITCH;
+            pinMode(zeroPin_, INPUT_PULLUP);
+            homeState_ = HOME_NONE;
         }
     }
 
@@ -406,8 +509,8 @@ public:
         float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
         float accelRpmPerSec = ProfileT::kDefaultAccelRpmPerSec, // Maximum Acceleration in RPM per second
         uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
-        bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
-        int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
+        uint8_t zeroActiveState = LOW,           // zeroPin is active when it reads LOW or HIGH
+        int8_t homeDirection = ProfileT::kDefaultHomeDirection, // Homing direction while seeking the lowest physical angle
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
         bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
@@ -431,7 +534,7 @@ public:
             maxRpm,
             accelRpmPerSec,
             zeroPin,
-            zeroActiveLow,
+            zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue
@@ -452,7 +555,7 @@ public:
         float maxRpm,                            // Maximum Speed in Revolutions Per Minute (RPM)
         float accelRpmPerSec,                    // Maximum Acceleration in RPM per second
         uint8_t zeroPin,                         // zeroPin: optional microswitch or opto detector input pin
-        bool zeroActiveLow,                      // zeroPin Active LOW (active when the signal is pulled to Ground)
+        uint8_t zeroActiveState,                 // zeroPin is active when it reads LOW or HIGH
         int8_t homeDirection,                    // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg,                     // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue,              // Maximum incoming DCS-BIOS value for this source
@@ -477,7 +580,7 @@ public:
             maxRpm,
             accelRpmPerSec,
             zeroPin,
-            zeroActiveLow,
+            zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue
@@ -510,8 +613,8 @@ public:
         float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
         float accelRpmPerSec = ProfileT::kDefaultAccelRpmPerSec, // Maximum Acceleration in RPM per second
         uint8_t zeroPin = PIN_NONE,              // zeroPin: optional microswitch or opto detector input pin
-        bool zeroActiveLow = true,               // zeroPin Active LOW (active when the signal is pulled to Ground)
-        int8_t homeDirection = -1,               // Homing direction: -1 or +1 while seeking zero
+        uint8_t zeroActiveState = LOW,           // zeroPin is active when it reads LOW or HIGH
+        int8_t homeDirection = ProfileT::kDefaultHomeDirection, // Homing direction while seeking the lowest physical angle
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
         bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
@@ -535,7 +638,7 @@ public:
             maxRpm,
             accelRpmPerSec,
             zeroPin,
-            zeroActiveLow,
+            zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue
@@ -558,7 +661,7 @@ public:
         float maxRpm,                            // Maximum Speed in Revolutions Per Minute (RPM)
         float accelRpmPerSec,                    // Maximum Acceleration in RPM per second
         uint8_t zeroPin,                         // zeroPin: optional microswitch or opto detector input pin
-        bool zeroActiveLow,                      // zeroPin Active LOW (active when the signal is pulled to Ground)
+        uint8_t zeroActiveState,                 // zeroPin is active when it reads LOW or HIGH
         int8_t homeDirection,                    // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg,                     // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue,              // Maximum incoming DCS-BIOS value for this source
@@ -583,7 +686,7 @@ public:
             maxRpm,
             accelRpmPerSec,
             zeroPin,
-            zeroActiveLow,
+            zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue
@@ -616,13 +719,20 @@ public:
     }
 
     void startHoming() {
-        if (zeroPin_ == PIN_NONE) return;
-        homeState_ = isZeroActive() ? HOME_RELEASE_SWITCH : HOME_SEEK_SWITCH;
+        startHomingWithOffset(homingStartOffsetSteps_);
     }
 
     // Backward-compatible alias for older sketches.
     void home() {
         startHoming();
+    }
+
+    void home(long startOffsetSteps) {
+        startHomingWithOffset(startOffsetSteps);
+    }
+
+    void homeDeg(float startOffsetDeg) {
+        home(homingOffsetDegToSteps(startOffsetDeg));
     }
 
     bool isHomed() const {
@@ -673,6 +783,26 @@ public:
         setInputZeroCentered(inputZeroCentered);
     }
 
+    void zeroInMiddle() {
+        inputZeroCentered_ = true;
+        if (!continuous_) {
+            minAngleDeg_ = -180.0f;
+            maxAngleDeg_ = 180.0f;
+        }
+    }
+
+    void zeroAtStart() {
+        inputZeroCentered_ = false;
+        if (!continuous_) {
+            minAngleDeg_ = 0.0f;
+            maxAngleDeg_ = 360.0f;
+        }
+    }
+
+    void wrapAround() {
+        configureContinuousBehavior(true, true, false);
+    }
+
     // Enable 0..360 wrapping for continuous gauges. When enabled, movement
     // uses the nearest equivalent target across the modulus boundary.
     void setModulusEnabled(bool modulusEnabled) {
@@ -688,6 +818,30 @@ public:
         zeroOffsetDeg_ = zeroOffsetDeg;
     }
 
+    void setHomingBackoffSteps(long backoffSteps) {
+        homingBackoffSteps_ = (backoffSteps < 0L) ? -backoffSteps : backoffSteps;
+    }
+
+    void setHomingBackoffDeg(float backoffDeg) {
+        setHomingBackoffSteps(angleDegToSteps(backoffDeg));
+    }
+
+    void setHomingBackoffDegs(float backoffDeg) {
+        setHomingBackoffDeg(backoffDeg);
+    }
+
+    void setHomingStartOffsetSteps(long startOffsetSteps) {
+        homingStartOffsetSteps_ = startOffsetSteps;
+    }
+
+    void setHomingStartOffsetDeg(float startOffsetDeg) {
+        setHomingStartOffsetSteps(homingOffsetDegToSteps(startOffsetDeg));
+    }
+
+    void setHomingStartOffsetDegs(float startOffsetDeg) {
+        setHomingStartOffsetDeg(startOffsetDeg);
+    }
+
     void setFaultCallback(FaultCallback faultCallback) {
         faultCallback_ = faultCallback;
     }
@@ -699,6 +853,10 @@ public:
 
     bool hasTimingFault() const {
         return timingFaultLatched_;
+    }
+
+    bool hasHomingFault() const {
+        return homeState_ == HOME_FAILED;
     }
 
     void setFaultToleranceMultiplier(float faultToleranceMultiplier) {
@@ -741,12 +899,12 @@ public:
 };
 
 // Public naming scheme for snippet generators and no-code users:
-//   EasyStepper                         -> legacy flexible stepper
-//   EasyStepper_Bounded                -> generic bounded sweep stepper
-//   EasyStepper_Continuous             -> generic continuous angle stepper
-//   EasyStepper_28BYJ48                -> legacy flexible 28BYJ-48 stepper
-//   EasyStepper_28BYJ48_Bounded        -> 28BYJ-48 bounded sweep stepper
-//   EasyStepper_28BYJ48_Continuous     -> 28BYJ-48 continuous angle stepper
+//   EasyStepper                     -> generic 4-wire stepper
+//   EasyStepper_Bounded             -> generic bounded sweep stepper
+//   EasyStepper_Continuous          -> generic continuous angle stepper
+//   EasyStepper_28BYJ48             -> 28BYJ-48 / ULN2003 stepper
+//   EasyStepper_28BYJ48_Bounded     -> 28BYJ-48 bounded sweep stepper
+//   EasyStepper_28BYJ48_Continuous  -> 28BYJ-48 continuous angle stepper
 class EasyStepper : public EasyStepperOutputT<GenericStepperProfile> {
 public:
     EasyStepper(
@@ -756,32 +914,26 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        bool inputZeroCentered = false,
-        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         pin1,
         pin2,
         pin3,
         pin4,
-        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        360.0f,
+        false,
         0.0f,
         GenericStepperProfile::kDefaultMaxRpm,
         GenericStepperProfile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        inputZeroCentered
+        false
     ) {
-        if (mode == EasyModeStepperMode::Sweep) {
-            this->configureBoundedBehavior(
-                inputZeroCentered ? -180.0f : 0.0f,
-                inputZeroCentered ? 180.0f : 360.0f
-            );
-            this->setInputMaxValue(65535U);
-        }
     }
 
     EasyStepper(
@@ -792,9 +944,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        bool inputZeroCentered = false,
-        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -803,24 +954,19 @@ public:
         pin2,
         pin3,
         pin4,
-        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        360.0f,
+        false,
         0.0f,
         GenericStepperProfile::kDefaultMaxRpm,
         GenericStepperProfile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        inputZeroCentered
+        false
     ) {
-        if (mode == EasyModeStepperMode::Sweep) {
-            this->configureBoundedBehavior(
-                inputZeroCentered ? -180.0f : 0.0f,
-                inputZeroCentered ? 180.0f : 360.0f
-            );
-            this->setInputMaxValue(65535U);
-        }
     }
 };
 
@@ -833,25 +979,25 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         pin1,
         pin2,
         pin3,
         pin4,
-        inputZeroCentered ? -180.0f : 0.0f,
-        inputZeroCentered ? 180.0f : 360.0f,
+        0.0f,
+        360.0f,
         false,
         0.0f,
         GenericStepperProfile::kDefaultMaxRpm,
         GenericStepperProfile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535,
-        inputZeroCentered
+        false
     ) {
     }
 
@@ -863,8 +1009,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin,
-        bool inputZeroCentered
+        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -873,18 +1019,18 @@ public:
         pin2,
         pin3,
         pin4,
-        inputZeroCentered ? -180.0f : 0.0f,
-        inputZeroCentered ? 180.0f : 360.0f,
+        0.0f,
+        360.0f,
         false,
         0.0f,
         GenericStepperProfile::kDefaultMaxRpm,
         GenericStepperProfile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535,
-        inputZeroCentered
+        false
     ) {
     }
 };
@@ -898,7 +1044,7 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         pin1,
@@ -910,11 +1056,11 @@ public:
         GenericStepperProfile::kDefaultMaxRpm,
         GenericStepperProfile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         360,
-        inputZeroCentered
+        false
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -928,7 +1074,7 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        bool inputZeroCentered
+        uint8_t zeroActiveState
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -942,11 +1088,11 @@ public:
         GenericStepperProfile::kDefaultMaxRpm,
         GenericStepperProfile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         360,
-        inputZeroCentered
+        false
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -960,33 +1106,27 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        bool inputZeroCentered = false,
-        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+        uint8_t zeroPin,
+        uint8_t zeroActiveState
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         pin1,
         pin2,
         pin3,
         pin4,
-        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        360.0f,
+        false,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        inputZeroCentered
+        false
     ) {
-        if (mode == EasyModeStepperMode::Sweep) {
-            this->configureBoundedBehavior(
-                inputZeroCentered ? -180.0f : 0.0f,
-                inputZeroCentered ? 180.0f : 360.0f
-            );
-            this->setInputMaxValue(65535U);
-        }
     }
 
     EasyStepper_28BYJ48(
@@ -997,9 +1137,8 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        bool inputZeroCentered = false,
-        EasyModeStepperMode mode = EasyModeStepperMode::Sweep
+        uint8_t zeroPin,
+        uint8_t zeroActiveState
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1008,24 +1147,19 @@ public:
         pin2,
         pin3,
         pin4,
-        mode == EasyModeStepperMode::Wrap,
+        0.0f,
+        360.0f,
+        false,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        inputZeroCentered
+        false
     ) {
-        if (mode == EasyModeStepperMode::Sweep) {
-            this->configureBoundedBehavior(
-                inputZeroCentered ? -180.0f : 0.0f,
-                inputZeroCentered ? 180.0f : 360.0f
-            );
-            this->setInputMaxValue(65535U);
-        }
     }
 };
 
@@ -1038,25 +1172,25 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         pin1,
         pin2,
         pin3,
         pin4,
-        inputZeroCentered ? -180.0f : 0.0f,
-        inputZeroCentered ? 180.0f : 360.0f,
+        0.0f,
+        360.0f,
         false,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535,
-        inputZeroCentered
+        false
     ) {
     }
 
@@ -1069,7 +1203,7 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        bool inputZeroCentered
+        uint8_t zeroActiveState
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1078,18 +1212,18 @@ public:
         pin2,
         pin3,
         pin4,
-        inputZeroCentered ? -180.0f : 0.0f,
-        inputZeroCentered ? 180.0f : 360.0f,
+        0.0f,
+        360.0f,
         false,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535,
-        inputZeroCentered
+        false
     ) {
     }
 };
@@ -1103,7 +1237,7 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        bool inputZeroCentered = false
+        uint8_t zeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         pin1,
@@ -1115,11 +1249,11 @@ public:
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         360,
-        inputZeroCentered
+        false
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -1133,7 +1267,7 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        bool inputZeroCentered
+        uint8_t zeroActiveState
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1147,11 +1281,11 @@ public:
         Stepper28Byj48Profile::kDefaultMaxRpm,
         Stepper28Byj48Profile::kDefaultAccelRpmPerSec,
         zeroPin,
-        true,
-        -1,
+        zeroActiveState,
+        Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         360,
-        inputZeroCentered
+        false
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -1162,6 +1296,7 @@ template<typename ProfileT>
 class EasyStepper_Manual {
 public:
     static constexpr uint8_t PIN_NONE = 0xFF;
+    static constexpr long kDefaultHomingBackoffSteps = 100L;
     typedef void (*FaultCallback)(
         unsigned int address,
         unsigned long serviceGapUs,
@@ -1171,8 +1306,12 @@ public:
 private:
     enum HomeState {
         HOME_NONE,
-        HOME_SEEK_SWITCH,
+        HOME_START_OFFSET,
+        HOME_COARSE_SEEK_SWITCH,
+        HOME_BACK_OFF_SWITCH,
         HOME_RELEASE_SWITCH,
+        HOME_FINE_SEEK_SWITCH,
+        HOME_FAILED,
         HOME_DONE
     };
 
@@ -1196,9 +1335,11 @@ private:
     bool inputZeroCentered_;
 
     uint8_t zeroPin_;
-    bool zeroActiveLow_;
+    uint8_t zeroActiveState_;
     int8_t homeDirection_;
     float zeroOffsetDeg_;
+    long homingStartOffsetSteps_;
+    long homingBackoffSteps_;
     HomeState homeState_;
 
     static float rpmToStepsPerSecond(float rpm) {
@@ -1286,15 +1427,78 @@ private:
     bool isZeroActive() const {
         if (zeroPin_ == PIN_NONE) return false;
         int value = digitalRead(zeroPin_);
-        return zeroActiveLow_ ? (value == LOW) : (value == HIGH);
+        return value == zeroActiveState_;
     }
 
     long angleDegToSteps(float angleDeg) const {
         return roundToLong((angleDeg / 360.0f) * (float)ProfileT::kStepsPerOutputRev);
     }
 
+    long homingOffsetDegToSteps(float angleDeg) const {
+        return angleDegToSteps(angleDeg) * ProfileT::kClockwiseStepSign;
+    }
+
+    float fineHomingRpm() const {
+        float rpm = maxRpm_ * 0.5f;
+        return (rpm > 0.0f) ? rpm : ProfileT::kDefaultHomingRpm;
+    }
+
     long zeroOffsetSteps() const {
         return angleDegToSteps(zeroOffsetDeg_);
+    }
+
+    long signedHomeDirection() const {
+        return (homeDirection_ < 0) ? -1L : 1L;
+    }
+
+    void setHomingSpeedTowardSwitch(float stepsPerSecond) {
+        stepper_.setSpeed((homeDirection_ < 0) ? -stepsPerSecond : stepsPerSecond);
+    }
+
+    void setHomingSpeedAwayFromSwitch(float stepsPerSecond) {
+        stepper_.setSpeed((homeDirection_ < 0) ? stepsPerSecond : -stepsPerSecond);
+    }
+
+    void startHomingSeek() {
+        if (isZeroActive()) {
+            startBackoffFromSwitch();
+        } else {
+            homeState_ = HOME_COARSE_SEEK_SWITCH;
+        }
+    }
+
+    void startBackoffFromSwitch() {
+        if (homingBackoffSteps_ <= 0L) {
+            homeState_ = HOME_RELEASE_SWITCH;
+            return;
+        }
+
+        stepper_.moveTo(stepper_.currentPosition() - (signedHomeDirection() * homingBackoffSteps_));
+        homeState_ = HOME_BACK_OFF_SWITCH;
+    }
+
+    void finishHoming() {
+        stepper_.stop();
+        stepper_.setCurrentPosition(zeroOffsetSteps());
+        stepper_.moveTo(zeroOffsetSteps());
+        homeState_ = HOME_DONE;
+    }
+
+    void failHoming() {
+        stepper_.setSpeed(0.0f);
+        stepper_.stop();
+        homeState_ = HOME_FAILED;
+    }
+
+    void startHomingWithOffset(long startOffsetSteps) {
+        if (zeroPin_ == PIN_NONE) return;
+        if (startOffsetSteps == 0L) {
+            startHomingSeek();
+            return;
+        }
+
+        stepper_.move(startOffsetSteps);
+        homeState_ = HOME_START_OFFSET;
     }
 
     long rawToBoundedSteps(unsigned int raw) const {
@@ -1339,7 +1543,7 @@ private:
         float maxRpm,
         float accelRpmPerSec,
         uint8_t zeroPin,
-        bool zeroActiveLow,
+        uint8_t zeroActiveState,
         int8_t homeDirection,
         float zeroOffsetDeg,
         unsigned int inputMaxValue
@@ -1353,10 +1557,12 @@ private:
         inputZeroCentered_ = false; // For manual, assume not centered unless specified
 
         zeroPin_ = zeroPin;
-        zeroActiveLow_ = zeroActiveLow;
-        homeDirection_ = homeDirection;
+        zeroActiveState_ = (zeroActiveState == HIGH) ? HIGH : LOW;
+        homeDirection_ = (homeDirection < 0) ? -1 : 1;
         zeroOffsetDeg_ = zeroOffsetDeg;
-        homeState_ = HOME_NONE;
+        homingStartOffsetSteps_ = 0L;
+        homingBackoffSteps_ = kDefaultHomingBackoffSteps;
+        homeState_ = (zeroPin_ == PIN_NONE) ? HOME_DONE : HOME_NONE;
 
         maxRpm_ = maxRpm;
         stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm_));
@@ -1367,6 +1573,10 @@ private:
         faultToleranceMultiplier_ = 1.0f;
         lastServiceUs_ = 0UL;
         lastExpectedStepIntervalUs_ = 0UL;
+
+        if (zeroPin_ != PIN_NONE) {
+            pinMode(zeroPin_, INPUT_PULLUP);
+        }
 
         setContinuousBehaviorFlags(false, false, false);
     }
@@ -1398,22 +1608,55 @@ private:
     }
 
     void serviceHoming() {
-        if (homeState_ == HOME_NONE) return;
+        if (homeState_ == HOME_NONE || homeState_ == HOME_DONE || homeState_ == HOME_FAILED) return;
 
-        if (homeState_ == HOME_SEEK_SWITCH) {
-            if (isZeroActive()) {
-                homeState_ = HOME_RELEASE_SWITCH;
-                stepper_.setSpeed(-stepper_.speed()); // reverse direction
-            } else {
-                stepper_.runSpeed();
+        float coarseSpeed = rpmToStepsPerSecond(maxRpm_);
+        float homingSpeed = rpmToStepsPerSecond(fineHomingRpm());
+
+        if (homeState_ == HOME_START_OFFSET) {
+            if (stepper_.distanceToGo() != 0L) {
+                stepper_.run();
+                return;
             }
-        } else if (homeState_ == HOME_RELEASE_SWITCH) {
-            if (!isZeroActive()) {
-                stepper_.stop();
-                stepper_.setCurrentPosition(zeroOffsetSteps());
-                homeState_ = HOME_DONE;
+
+            startHomingSeek();
+        }
+
+        if (homeState_ == HOME_COARSE_SEEK_SWITCH) {
+            if (isZeroActive()) {
+                startBackoffFromSwitch();
             } else {
+                setHomingSpeedTowardSwitch(coarseSpeed);
                 stepper_.runSpeed();
+                return;
+            }
+        }
+
+        if (homeState_ == HOME_BACK_OFF_SWITCH) {
+            if (stepper_.distanceToGo() != 0L) {
+                stepper_.run();
+                return;
+            }
+
+            homeState_ = HOME_RELEASE_SWITCH;
+        }
+
+        if (homeState_ == HOME_RELEASE_SWITCH) {
+            if (isZeroActive()) {
+                failHoming();
+                return;
+            }
+
+            homeState_ = HOME_FINE_SEEK_SWITCH;
+        }
+
+        if (homeState_ == HOME_FINE_SEEK_SWITCH) {
+            if (isZeroActive()) {
+                finishHoming();
+            } else {
+                setHomingSpeedTowardSwitch(homingSpeed);
+                stepper_.runSpeed();
+                return;
             }
         }
     }
@@ -1425,7 +1668,7 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = PIN_NONE,
-        bool inputZeroCentered = false,
+        uint8_t zeroActiveState = LOW,
         unsigned int inputMaxValue = 65535
     ) : stepper_(
         ProfileT::kInterface,
@@ -1436,19 +1679,18 @@ public:
     ) {
         commonInit(
             false, // bounded
-            inputZeroCentered ? -180.0f : 0.0f,
-            inputZeroCentered ? 180.0f : 360.0f,
+            0.0f,
+            360.0f,
             false,
             0.0f,
             ProfileT::kDefaultMaxRpm,
             ProfileT::kDefaultAccelRpmPerSec,
             zeroPin,
-            true,
-            -1,
+            zeroActiveState,
+            ProfileT::kDefaultHomeDirection,
             0.0f,
             inputMaxValue
         );
-        inputZeroCentered_ = inputZeroCentered;
     }
 
     void setPosition(unsigned int value) {
@@ -1491,13 +1733,67 @@ public:
     }
 
     void home() {
-        if (zeroPin_ == PIN_NONE) return;
-        stepper_.setSpeed((float)homeDirection_ * rpmToStepsPerSecond(ProfileT::kDefaultHomingRpm));
-        homeState_ = HOME_SEEK_SWITCH;
+        startHomingWithOffset(homingStartOffsetSteps_);
+    }
+
+    void home(long startOffsetSteps) {
+        startHomingWithOffset(startOffsetSteps);
+    }
+
+    void homeDeg(float startOffsetDeg) {
+        home(homingOffsetDegToSteps(startOffsetDeg));
+    }
+
+    void setHomingBackoffSteps(long backoffSteps) {
+        homingBackoffSteps_ = (backoffSteps < 0L) ? -backoffSteps : backoffSteps;
+    }
+
+    void setHomingBackoffDeg(float backoffDeg) {
+        setHomingBackoffSteps(angleDegToSteps(backoffDeg));
+    }
+
+    void setHomingBackoffDegs(float backoffDeg) {
+        setHomingBackoffDeg(backoffDeg);
+    }
+
+    void setHomingStartOffsetSteps(long startOffsetSteps) {
+        homingStartOffsetSteps_ = startOffsetSteps;
+    }
+
+    void setHomingStartOffsetDeg(float startOffsetDeg) {
+        setHomingStartOffsetSteps(homingOffsetDegToSteps(startOffsetDeg));
+    }
+
+    void setHomingStartOffsetDegs(float startOffsetDeg) {
+        setHomingStartOffsetDeg(startOffsetDeg);
     }
 
     bool isHomed() const {
         return homeState_ == HOME_DONE;
+    }
+
+    bool hasHomingFault() const {
+        return homeState_ == HOME_FAILED;
+    }
+
+    void zeroInMiddle() {
+        inputZeroCentered_ = true;
+        if (!continuous_) {
+            minAngleDeg_ = -180.0f;
+            maxAngleDeg_ = 180.0f;
+        }
+    }
+
+    void zeroAtStart() {
+        inputZeroCentered_ = false;
+        if (!continuous_) {
+            minAngleDeg_ = 0.0f;
+            maxAngleDeg_ = 360.0f;
+        }
+    }
+
+    void wrapAround() {
+        configureContinuousBehavior(true, true, false);
     }
 
     void configureContinuousBehavior(bool useModulo, bool useShortestPath, bool inputIsAngle) {

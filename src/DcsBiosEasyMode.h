@@ -89,7 +89,6 @@ using Servo = EasyServo;
 using Servo_SG90 = EasyServo_SG90;
 using ServoOutput = DcsBios::ServoOutput;
 
-using StepperMode = DcsBios::EasyModeStepperMode;
 using Stepper = EasyStepper;
 using Stepper_Manual = EasyStepper_Manual<GenericStepperProfile>;
 using Stepper_28BYJ48 = EasyStepper_28BYJ48;

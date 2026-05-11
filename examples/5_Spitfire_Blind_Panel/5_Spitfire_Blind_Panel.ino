@@ -33,7 +33,7 @@ DcsBios::EasyMode::Stepper_28BYJ48 airspeedgauge(
     AIRSPEED_STEPPER_PIN3,        // Arduino pin connected to the stepper driver input pin 3
     AIRSPEED_STEPPER_PIN4,        // Arduino pin connected to the stepper driver input pin 4
     AIRSPEED_ZERO_PIN,            // Zero angle detection input pin
-    false                         // inputZeroCentered: false because 0 knots is at 0 degrees and max speed is at 720 degrees
+    LOW                           // Zero switch is active when the pin reads LOW
 );
 
 // ******************************************************************************
@@ -68,7 +68,7 @@ DcsBios::EasyMode::Stepper_Manual_28BYJ48 rateofclimbstepper(
     ROCLIMB_STEPPER_PIN3,      // Arduino pin connected to the stepper driver input pin 3
     ROCLIMB_STEPPER_PIN4,      // Arduino pin connected to the stepper driver input pin 4
     ROCLIMB_ZERO_PIN,          // Zero angle detection input pin
-    true                       // inputZeroCentered: true because center is 0 ft/min
+    LOW                        // Zero switch is active when the pin reads LOW
 );
 
 void updateRateOfClimbStepper(unsigned int altitudeFt) {
@@ -130,7 +130,7 @@ DcsBios::EasyMode::Stepper_Manual_28BYJ48 altimeter3NeedleStepper(
     ALTIMETER_STEPPER_PIN3,    // Arduino pin connected to the stepper driver input pin 3
     ALTIMETER_STEPPER_PIN4,    // Arduino pin connected to the stepper driver input pin 4
     ALTIMETER_ZERO_PIN,        // Zero angle detection input pin
-    false                      // inputZeroCentered: false because 0 ft is at 0 degrees
+    LOW                        // Zero switch is active when the pin reads LOW
 );
 
 // ALTIMETER Hundreds of Feet Needle
@@ -167,7 +167,7 @@ DcsBios::EasyMode::Stepper_28BYJ48 DIStepper(
     DI_STEPPER_PIN3,          // Arduino pin connected to the stepper driver input pin 3
     DI_STEPPER_PIN4,          // Arduino pin connected to the stepper driver input pin 4
     DI_ZERO_PIN,              // Zero angle detection input pin
-    false                     // inputZeroCentered: false because 0 degrees is at 0 input
+    LOW                       // Zero switch is active when the pin reads LOW
 );
 
 // *******************************************************************************
@@ -223,6 +223,7 @@ void setup() {
 
     // Rate of Climb
     // The gauge is +/- 4,000 ft/min full scale (+/- 135 degrees) with a center at 0 ft/min.
+    rateofclimbstepper.zeroInMiddle();
     rateofclimbstepper.configureBoundedBehavior(-135.0f, 135.0f); // adjust as needed for max climb/descent rate
     rateofclimbstepper.setMaxRpm(20.0f); // adjust as needed
     rateofclimbstepper.setAccelRpmPerSec(40.0f);

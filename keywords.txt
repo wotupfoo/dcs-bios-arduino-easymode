@@ -43,7 +43,6 @@ Servo_SG90	KEYWORD1
 ServoOutput	KEYWORD1
 
 Stepper	KEYWORD1
-StepperMode	KEYWORD1
 Stepper_Manual	KEYWORD1
 Stepper_28BYJ48	KEYWORD1
 Stepper_Manual_28BYJ48	KEYWORD1

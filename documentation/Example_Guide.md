@@ -517,9 +517,7 @@ Examples:
 
 - `DcsBios::EasyMode::Servo_SG90 ...`
 - `DcsBios::EasyMode::Stepper ...`
-- `DcsBios::EasyMode::Stepper ..., DcsBios::EasyMode::StepperMode::Wrap`
 - `DcsBios::EasyMode::Stepper_28BYJ48 ...`
-- `DcsBios::EasyMode::Stepper_28BYJ48 ..., DcsBios::EasyMode::StepperMode::Wrap`
 
 ## Step 19: Paste It Into 0_DefaultSerial And Change Only The First Few Things
 
@@ -530,7 +528,10 @@ If the example also tells you to add extra tuning lines such as:
 - `setMaxAngle(...)`
 - `setMinAngle(...)`
 - `setTrimDeg(...)`
-- `setModulusEnabled(...)`
+- `zeroAtStart()`
+- `zeroInMiddle()`
+- `wrapAround()`
+- `home()`
 
 put those lines inside `setup()`, before `DcsBios::EasyMode::setup();`
 
@@ -539,10 +540,68 @@ A beginner will usually only need to change:
 - telemetry source name
 - Arduino pin numbers
 - zero detection pin
-- whether zero is at the start or in the middle
+- whether the zero switch is active when the pin reads `LOW` or `HIGH`
+- whether the instrument value starts at zero or is centered around zero
 - maximum angle
 - minimum angle
 - trim
+
+For steppers, keep this split in mind:
+
+- The object line is physical wiring: telemetry source, motor pins, optional zero switch pin, and whether that switch reads `LOW` or `HIGH` when active.
+- The setup lines describe behavior: one-turn or multi-turn travel, centered-zero motion, wrap-around motion, trim, and whether to home at startup.
+
+Example stepper object line:
+
+```cpp
+DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
+    CommonData_ALT_MSL_FT_A,
+    8,
+    9,
+    10,
+    11,
+    12,
+    LOW
+);
+```
+
+In that example, pins `8`, `9`, `10`, and `11` go to the stepper driver. Pin `12` is the zero detection input. `LOW` means the switch is triggered when the Arduino input reads `LOW`.
+
+Use `LOW` for the common Arduino wiring style where the input uses a pullup and the switch pulls the pin to ground when triggered. Use `HIGH` when your sensor or switch circuit normally holds the pin low and drives it high when triggered.
+
+If there is no zero switch, use `DcsBios::EasyMode::NoPin` in the zero pin position. Homing only works when a real zero switch or sensor is connected.
+
+Example setup lines:
+
+```cpp
+void setup() {
+    altimeterNeedle.setMaxAngle(235926.0f);
+    altimeterNeedle.zeroAtStart();
+    altimeterNeedle.home();
+
+    DcsBios::EasyMode::setup();
+}
+```
+
+`home()` is not automatic. Call it only when the stepper has a zero switch or sensor.
+
+Two different "zero" ideas appear in stepper sketches:
+
+- The zero switch is a physical detector used at startup so the Arduino can find the real needle position.
+- The instrument zero is the meaning of the telemetry value. `zeroAtStart()` is for normal 0-to-maximum gauges. `zeroInMiddle()` is for gauges where the middle of the telemetry range means zero, such as some up/down or left/right indicators.
+
+What `home()` does for a stepper:
+
+1. If the zero switch is already active, move away from the switch first.
+2. If the switch does not release after that backoff move, stop homing and report a homing fault.
+3. If the switch is not active, move toward the zero switch until it is found.
+4. Move away from the switch to clear it.
+5. Move slowly back toward the switch and stop when it is found again.
+6. Mark the current position as the stepper's zero position.
+
+For the built-in `Stepper_28BYJ48` defaults, the first search direction is counter-clockwise. If the needle starts on the switch, the first backoff move is clockwise, away from zero.
+
+If a zero switch wire breaks in a way that makes the input look permanently active, homing should stop in a fault instead of driving the needle forever. Advanced sketches can check that with `hasHomingFault()`.
 
 ## Step 20: Build And Upload Your Own Sketch
 
@@ -621,13 +680,14 @@ Usually changed by the user:
 
 - motor pins
 - zero detection pin
-- whether zero is at the start or in the middle
+- whether the zero switch is active `LOW` or active `HIGH`
 - maximum angle
 
 Important idea:
 
 - The hardware connection is in the object line.
 - The real instrument travel is adjusted later with `setMaxAngle()`.
+- Homing is optional and starts only if you call `home()` in `setup()`.
 
 Photo placeholder:
 
@@ -712,12 +772,12 @@ Usually changed by the user:
 
 - motor pins
 - zero detection pin
-- whether zero is at the start or in the middle
-- whether modulus wrapping stays on
+- whether the zero switch is active `LOW` or active `HIGH`
+- whether `wrapAround()` is used in `setup()`
 
 Important idea:
 
-- This example is for repeating motion, not a fixed end-stop sweep.
+- This example is for repeating motion, not a fixed end-stop sweep. The wrap-around behavior is set in `setup()`.
 
 Photo placeholder:
 
@@ -745,7 +805,7 @@ Usually changed by the user:
 
 - motor pins
 - zero detection pin
-- whether zero is at the start or in the middle
+- whether the zero switch is active `LOW` or active `HIGH`
 - maximum angle
 
 Photo placeholder:
@@ -797,8 +857,8 @@ Usually changed by the user:
 
 - motor pins
 - zero detection pin
-- whether zero is at the start or in the middle
-- whether modulus wrapping stays on
+- whether the zero switch is active `LOW` or active `HIGH`
+- whether `wrapAround()` is used in `setup()`
 
 Photo placeholder:
 
@@ -862,7 +922,9 @@ Check:
 
 - trim
 - zero detection sensor position
-- whether zero should be at the low end or in the middle
+- whether the zero switch should be active `LOW` or active `HIGH`
+- whether the instrument behavior should use `zeroAtStart()` or `zeroInMiddle()`
+- whether `home()` is being called before the stepper has found a real zero switch
 
 ## Notes For Later PDF Release
 
