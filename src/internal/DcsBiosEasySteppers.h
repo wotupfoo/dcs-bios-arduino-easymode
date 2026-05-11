@@ -48,7 +48,7 @@ using Stepper28Byj48Profile = StepperProfile<
     200,  // 20.0 RPM/sec acceleration
     80,   // 8.0 RPM homing speed fallback
     true, // swap the middle pins for AccelStepper
-    1     // positive degree homing offsets are clockwise at the gearbox shaft
+    -1    // clockwise at the gearbox shaft is negative AccelStepper movement
 >;
 
 template<typename ProfileT>
@@ -67,9 +67,10 @@ private:
         HOME_NONE,
         HOME_START_OFFSET,
         HOME_COARSE_SEEK_SWITCH,
-        HOME_BACK_OFF_SWITCH,
         HOME_RELEASE_SWITCH,
+        HOME_CLEAR_SWITCH,
         HOME_FINE_SEEK_SWITCH,
+        HOME_STOP_AT_ZERO,
         HOME_FAILED,
         HOME_DONE
     };
@@ -102,6 +103,7 @@ private:
     float zeroOffsetDeg_;
     long homingStartOffsetSteps_;
     long homingBackoffSteps_;
+    long homingReferencePosition_;
     HomeState homeState_;
 
     static float rpmToStepsPerSecond(float rpm) {
@@ -217,35 +219,83 @@ private:
         return (homeDirection_ < 0) ? -1L : 1L;
     }
 
-    void setHomingSpeedTowardSwitch(float stepsPerSecond) {
-        stepper_.setSpeed((homeDirection_ < 0) ? -stepsPerSecond : stepsPerSecond);
+    bool isCoarseZeroActive() const {
+        return isZeroActive();
     }
 
-    void setHomingSpeedAwayFromSwitch(float stepsPerSecond) {
-        stepper_.setSpeed((homeDirection_ < 0) ? stepsPerSecond : -stepsPerSecond);
+    bool isFineZeroActive() const {
+        return isZeroActive();
+    }
+
+    long homingSeekTravelSteps() const {
+        return ProfileT::kStepsPerOutputRev * 10000L;
+    }
+
+    static long stepMagnitude(long steps) {
+        return (steps < 0L) ? -steps : steps;
+    }
+
+    void setHomingMaxRpm(float rpm) {
+        stepper_.setMaxSpeed(rpmToStepsPerSecond(rpm));
+    }
+
+    void moveInHomingDirection(long direction, long steps) {
+        long distance = stepMagnitude(steps);
+        long offset = (direction < 0L) ? -distance : distance;
+        stepper_.moveTo(stepper_.currentPosition() + offset);
+    }
+
+    void moveTowardSwitch(long steps) {
+        moveInHomingDirection(signedHomeDirection(), steps);
+    }
+
+    void moveAwayFromSwitch(long steps) {
+        moveInHomingDirection(-signedHomeDirection(), steps);
     }
 
     void startHomingSeek() {
-        if (isZeroActive()) {
-            startBackoffFromSwitch();
+        setHomingMaxRpm(maxRpm_);
+        if (isCoarseZeroActive()) {
+            startReleaseFromSwitch();
         } else {
+            moveTowardSwitch(homingSeekTravelSteps());
             homeState_ = HOME_COARSE_SEEK_SWITCH;
         }
     }
 
-    void startBackoffFromSwitch() {
+    void startReleaseFromSwitch() {
+        setHomingMaxRpm(maxRpm_);
+        moveAwayFromSwitch(homingSeekTravelSteps());
+        homeState_ = HOME_RELEASE_SWITCH;
+    }
+
+    void startClearanceFromSwitch() {
         if (homingBackoffSteps_ <= 0L) {
-            homeState_ = HOME_RELEASE_SWITCH;
+            startFineSeekSwitch();
             return;
         }
 
-        stepper_.moveTo(stepper_.currentPosition() - (signedHomeDirection() * homingBackoffSteps_));
-        homeState_ = HOME_BACK_OFF_SWITCH;
+        setHomingMaxRpm(maxRpm_);
+        moveAwayFromSwitch(homingBackoffSteps_);
+        homeState_ = HOME_CLEAR_SWITCH;
+    }
+
+    void startFineSeekSwitch() {
+        setHomingMaxRpm(fineHomingRpm());
+        moveTowardSwitch(homingSeekTravelSteps());
+        homeState_ = HOME_FINE_SEEK_SWITCH;
+    }
+
+    void startStopAtZero() {
+        homingReferencePosition_ = stepper_.currentPosition();
+        stepper_.stop();
+        homeState_ = HOME_STOP_AT_ZERO;
     }
 
     void finishHoming() {
-        stepper_.setCurrentPosition(zeroOffsetSteps());
-        stepper_.moveTo(zeroOffsetSteps());
+        long stoppedDeltaSteps = stepper_.currentPosition() - homingReferencePosition_;
+        stepper_.setCurrentPosition(zeroOffsetSteps() + stoppedDeltaSteps);
+        setHomingMaxRpm(maxRpm_);
         homeState_ = HOME_DONE;
     }
 
@@ -329,9 +379,6 @@ private:
     void runHoming() {
         if (homeState_ == HOME_DONE || homeState_ == HOME_NONE || homeState_ == HOME_FAILED) return;
 
-        float coarseSpeed = rpmToStepsPerSecond(maxRpm_);
-        float homingSpeed = rpmToStepsPerSecond(fineHomingRpm());
-
         if (homeState_ == HOME_START_OFFSET) {
             if (stepper_.distanceToGo() != 0L) {
                 stepper_.run();
@@ -342,40 +389,57 @@ private:
         }
 
         if (homeState_ == HOME_COARSE_SEEK_SWITCH) {
-            if (isZeroActive()) {
-                startBackoffFromSwitch();
+            if (isCoarseZeroActive()) {
+                startReleaseFromSwitch();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
             } else {
-                setHomingSpeedTowardSwitch(coarseSpeed);
-                stepper_.runSpeed();
+                stepper_.run();
                 return;
             }
         }
 
-        if (homeState_ == HOME_BACK_OFF_SWITCH) {
+        if (homeState_ == HOME_RELEASE_SWITCH) {
+            if (!isCoarseZeroActive()) {
+                startClearanceFromSwitch();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
+            } else {
+                stepper_.run();
+                return;
+            }
+        }
+
+        if (homeState_ == HOME_CLEAR_SWITCH) {
             if (stepper_.distanceToGo() != 0L) {
                 stepper_.run();
                 return;
             }
 
-            homeState_ = HOME_RELEASE_SWITCH;
-        }
-
-        if (homeState_ == HOME_RELEASE_SWITCH) {
-            if (isZeroActive()) {
-                failHoming();
-                return;
-            }
-
-            homeState_ = HOME_FINE_SEEK_SWITCH;
+            startFineSeekSwitch();
         }
 
         if (homeState_ == HOME_FINE_SEEK_SWITCH) {
-            if (isZeroActive()) {
-                finishHoming();
+            if (isFineZeroActive()) {
+                startStopAtZero();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
             } else {
-                setHomingSpeedTowardSwitch(homingSpeed);
-                stepper_.runSpeed();
+                stepper_.run();
+                return;
             }
+        }
+
+        if (homeState_ == HOME_STOP_AT_ZERO) {
+            if (stepper_.distanceToGo() != 0L) {
+                stepper_.run();
+                return;
+            }
+
+            finishHoming();
         }
     }
 
@@ -409,9 +473,14 @@ private:
         }
 
         if (homeState_ != HOME_DONE && homeState_ != HOME_NONE) {
-            float expectedSpeed = (homeState_ == HOME_FINE_SEEK_SWITCH)
-                ? rpmToStepsPerSecond(fineHomingRpm())
-                : rpmToStepsPerSecond(maxRpm_);
+            float expectedSpeed = 0.0f;
+            if (homeState_ == HOME_STOP_AT_ZERO) {
+                expectedSpeed = stepper_.speed();
+            } else {
+                expectedSpeed = (homeState_ == HOME_FINE_SEEK_SWITCH)
+                    ? rpmToStepsPerSecond(fineHomingRpm())
+                    : rpmToStepsPerSecond(maxRpm_);
+            }
             lastExpectedStepIntervalUs_ = stepsPerSecondToIntervalUs(
                 expectedSpeed
             );
@@ -455,6 +524,7 @@ private:
         zeroOffsetDeg_ = zeroOffsetDeg;
         homingStartOffsetSteps_ = 0L;
         homingBackoffSteps_ = kDefaultHomingBackoffSteps;
+        homingReferencePosition_ = 0L;
         inputZeroCentered_ = false;
         maxRpm_ = maxRpm;
         faultCallback_ = nullptr;
@@ -1308,9 +1378,10 @@ private:
         HOME_NONE,
         HOME_START_OFFSET,
         HOME_COARSE_SEEK_SWITCH,
-        HOME_BACK_OFF_SWITCH,
         HOME_RELEASE_SWITCH,
+        HOME_CLEAR_SWITCH,
         HOME_FINE_SEEK_SWITCH,
+        HOME_STOP_AT_ZERO,
         HOME_FAILED,
         HOME_DONE
     };
@@ -1340,6 +1411,7 @@ private:
     float zeroOffsetDeg_;
     long homingStartOffsetSteps_;
     long homingBackoffSteps_;
+    long homingReferencePosition_;
     HomeState homeState_;
 
     static float rpmToStepsPerSecond(float rpm) {
@@ -1451,36 +1523,83 @@ private:
         return (homeDirection_ < 0) ? -1L : 1L;
     }
 
-    void setHomingSpeedTowardSwitch(float stepsPerSecond) {
-        stepper_.setSpeed((homeDirection_ < 0) ? -stepsPerSecond : stepsPerSecond);
+    bool isCoarseZeroActive() const {
+        return isZeroActive();
     }
 
-    void setHomingSpeedAwayFromSwitch(float stepsPerSecond) {
-        stepper_.setSpeed((homeDirection_ < 0) ? stepsPerSecond : -stepsPerSecond);
+    bool isFineZeroActive() const {
+        return isZeroActive();
+    }
+
+    long homingSeekTravelSteps() const {
+        return ProfileT::kStepsPerOutputRev * 10000L;
+    }
+
+    static long stepMagnitude(long steps) {
+        return (steps < 0L) ? -steps : steps;
+    }
+
+    void setHomingMaxRpm(float rpm) {
+        stepper_.setMaxSpeed(rpmToStepsPerSecond(rpm));
+    }
+
+    void moveInHomingDirection(long direction, long steps) {
+        long distance = stepMagnitude(steps);
+        long offset = (direction < 0L) ? -distance : distance;
+        stepper_.moveTo(stepper_.currentPosition() + offset);
+    }
+
+    void moveTowardSwitch(long steps) {
+        moveInHomingDirection(signedHomeDirection(), steps);
+    }
+
+    void moveAwayFromSwitch(long steps) {
+        moveInHomingDirection(-signedHomeDirection(), steps);
     }
 
     void startHomingSeek() {
-        if (isZeroActive()) {
-            startBackoffFromSwitch();
+        setHomingMaxRpm(maxRpm_);
+        if (isCoarseZeroActive()) {
+            startReleaseFromSwitch();
         } else {
+            moveTowardSwitch(homingSeekTravelSteps());
             homeState_ = HOME_COARSE_SEEK_SWITCH;
         }
     }
 
-    void startBackoffFromSwitch() {
+    void startReleaseFromSwitch() {
+        setHomingMaxRpm(maxRpm_);
+        moveAwayFromSwitch(homingSeekTravelSteps());
+        homeState_ = HOME_RELEASE_SWITCH;
+    }
+
+    void startClearanceFromSwitch() {
         if (homingBackoffSteps_ <= 0L) {
-            homeState_ = HOME_RELEASE_SWITCH;
+            startFineSeekSwitch();
             return;
         }
 
-        stepper_.moveTo(stepper_.currentPosition() - (signedHomeDirection() * homingBackoffSteps_));
-        homeState_ = HOME_BACK_OFF_SWITCH;
+        setHomingMaxRpm(maxRpm_);
+        moveAwayFromSwitch(homingBackoffSteps_);
+        homeState_ = HOME_CLEAR_SWITCH;
+    }
+
+    void startFineSeekSwitch() {
+        setHomingMaxRpm(fineHomingRpm());
+        moveTowardSwitch(homingSeekTravelSteps());
+        homeState_ = HOME_FINE_SEEK_SWITCH;
+    }
+
+    void startStopAtZero() {
+        homingReferencePosition_ = stepper_.currentPosition();
+        stepper_.stop();
+        homeState_ = HOME_STOP_AT_ZERO;
     }
 
     void finishHoming() {
-        stepper_.stop();
-        stepper_.setCurrentPosition(zeroOffsetSteps());
-        stepper_.moveTo(zeroOffsetSteps());
+        long stoppedDeltaSteps = stepper_.currentPosition() - homingReferencePosition_;
+        stepper_.setCurrentPosition(zeroOffsetSteps() + stoppedDeltaSteps);
+        setHomingMaxRpm(maxRpm_);
         homeState_ = HOME_DONE;
     }
 
@@ -1562,6 +1681,7 @@ private:
         zeroOffsetDeg_ = zeroOffsetDeg;
         homingStartOffsetSteps_ = 0L;
         homingBackoffSteps_ = kDefaultHomingBackoffSteps;
+        homingReferencePosition_ = 0L;
         homeState_ = (zeroPin_ == PIN_NONE) ? HOME_DONE : HOME_NONE;
 
         maxRpm_ = maxRpm;
@@ -1610,9 +1730,6 @@ private:
     void serviceHoming() {
         if (homeState_ == HOME_NONE || homeState_ == HOME_DONE || homeState_ == HOME_FAILED) return;
 
-        float coarseSpeed = rpmToStepsPerSecond(maxRpm_);
-        float homingSpeed = rpmToStepsPerSecond(fineHomingRpm());
-
         if (homeState_ == HOME_START_OFFSET) {
             if (stepper_.distanceToGo() != 0L) {
                 stepper_.run();
@@ -1623,41 +1740,57 @@ private:
         }
 
         if (homeState_ == HOME_COARSE_SEEK_SWITCH) {
-            if (isZeroActive()) {
-                startBackoffFromSwitch();
+            if (isCoarseZeroActive()) {
+                startReleaseFromSwitch();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
             } else {
-                setHomingSpeedTowardSwitch(coarseSpeed);
-                stepper_.runSpeed();
+                stepper_.run();
                 return;
             }
         }
 
-        if (homeState_ == HOME_BACK_OFF_SWITCH) {
+        if (homeState_ == HOME_RELEASE_SWITCH) {
+            if (!isCoarseZeroActive()) {
+                startClearanceFromSwitch();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
+            } else {
+                stepper_.run();
+                return;
+            }
+        }
+
+        if (homeState_ == HOME_CLEAR_SWITCH) {
             if (stepper_.distanceToGo() != 0L) {
                 stepper_.run();
                 return;
             }
 
-            homeState_ = HOME_RELEASE_SWITCH;
-        }
-
-        if (homeState_ == HOME_RELEASE_SWITCH) {
-            if (isZeroActive()) {
-                failHoming();
-                return;
-            }
-
-            homeState_ = HOME_FINE_SEEK_SWITCH;
+            startFineSeekSwitch();
         }
 
         if (homeState_ == HOME_FINE_SEEK_SWITCH) {
-            if (isZeroActive()) {
-                finishHoming();
+            if (isFineZeroActive()) {
+                startStopAtZero();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
             } else {
-                setHomingSpeedTowardSwitch(homingSpeed);
-                stepper_.runSpeed();
+                stepper_.run();
                 return;
             }
+        }
+
+        if (homeState_ == HOME_STOP_AT_ZERO) {
+            if (stepper_.distanceToGo() != 0L) {
+                stepper_.run();
+                return;
+            }
+
+            finishHoming();
         }
     }
 
