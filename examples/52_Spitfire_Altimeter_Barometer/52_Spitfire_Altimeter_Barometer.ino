@@ -55,8 +55,11 @@
 #define ALTIMETER_STEPPER_PIN_3 4
 #define ALTIMETER_STEPPER_PIN_4 5
 #define ALTIMETER_ZERO_PIN A0          // Lobe on 10,000 foot needle driving a microswitch to detect zero position
+#define ALTIMETER_ZERO_PIN2 A1          // Lobe on 100 foot needle driving a microswitch to detect zero position
 
-#define BAROMETER_SERVO_PIN A7
+#define BAROMETER_SERVO_PIN 13
+
+#define DEBUG_LED A2
 
 DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
     CommonData_ALT_MSL_FT_A,    // Telemetry source: altitude above mean sea level in feet
@@ -64,8 +67,15 @@ DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
     ALTIMETER_STEPPER_PIN_2,    // 28BYJ-48 / ULN2003 input pin 2
     ALTIMETER_STEPPER_PIN_3,    // 28BYJ-48 / ULN2003 input pin 3
     ALTIMETER_STEPPER_PIN_4,    // 28BYJ-48 / ULN2003 input pin 4
-    ALTIMETER_ZERO_PIN,         // Zero angle detection input pin
+#if 0   // COARSE and FINE zeroing using two microswitches.
+    ALTIMETER_ZERO_PIN,         // Zero angle detection input pin for the 10,000 foot needle
+    HIGH,                       // Zero switch is active when the pin reads HIGH
+    ALTIMETER_ZERO_PIN2,        // Second zero angle detection input pin for the 100 foot needle
+    HIGH                        // Second zero switch is active when the pin reads HIGH
+#else   // COARSE zeroing only using one microswitch on the 10,000 foot needle.
+    ALTIMETER_ZERO_PIN,         // Zero angle detection input pin for the 10,000 foot needle
     HIGH                        // Zero switch is active when the pin reads HIGH
+#endif
 );
 
 // In this Barmeter implementation, there is a gear reduction from the servo to the barometer wheel.
@@ -83,21 +93,20 @@ DcsBios::EasyMode::Servo barometer(
 
 void setup() {
     // This altimeter example needs many turns, not the default one-turn sweep.
+    // 100 feet is 360 degrees, so 65,535 feet is 655.35 * 360 degrees = 235,926 degrees.
+    // This is the logical extent, the game won't allow a Spitfire or Mosquito to go
+    // anywhere near 65,535 feet, but the library needs to know the full range to calculate
+    // the correct angle for each altitude.
     altimeterNeedle.setMaxAngle(235926.0f);
 
-    // Testing the max speed and accelearation settings for the 28BYJ-48 stepper. The defaults are quite slow and gentle.
-    //altimeterNeedle.setMaxRpm(12.0f);           // 8 RPM is the default
-    //altimeterNeedle.setAccelRpmPerSec(20.0f);   // 20 RPM/sec is the default
-    // Home Altimeter needles
-//    altimeterNeedle.homeDeg(360.0*2.0); // There is 3 turns (3,000ft) of backlash
     altimeterNeedle.home();
 
     DcsBios::EasyMode::setup();
-    pinMode(A1, OUTPUT);    // LED to indicate when the zero switch is active watching A0
+    pinMode(DEBUG_LED, OUTPUT);    // LED to indicate when the zero switch is active watching A0
 }
 
 void loop() {
     DcsBios::EasyMode::loop();
     // Mimic LED to show when zero switch is triggered (active HIGH)
-    digitalWrite(A1, digitalRead(ALTIMETER_ZERO_PIN));
+    digitalWrite(DEBUG_LED, digitalRead(ALTIMETER_ZERO_PIN));
 }

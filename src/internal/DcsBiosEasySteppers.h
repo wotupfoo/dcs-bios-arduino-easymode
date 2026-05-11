@@ -69,6 +69,7 @@ private:
         HOME_COARSE_SEEK_SWITCH,
         HOME_RELEASE_SWITCH,
         HOME_CLEAR_SWITCH,
+        HOME_RELEASE_FINE_SWITCH,
         HOME_FINE_SEEK_SWITCH,
         HOME_STOP_AT_ZERO,
         HOME_FAILED,
@@ -99,6 +100,8 @@ private:
 
     uint8_t zeroPin_;
     uint8_t zeroActiveState_;
+    uint8_t fineZeroPin_;
+    uint8_t fineZeroActiveState_;
     int8_t homeDirection_;
     float zeroOffsetDeg_;
     long homingStartOffsetSteps_;
@@ -192,10 +195,26 @@ private:
         return ((this->Int16Buffer::getData()) & mask_) >> shift_;
     }
 
+    bool isPinActive(uint8_t pin, uint8_t activeState) const {
+        if (pin == PIN_NONE) return false;
+        int value = digitalRead(pin);
+        return value == activeState;
+    }
+
+    bool hasCoarseZeroPin() const {
+        return zeroPin_ != PIN_NONE;
+    }
+
+    bool hasFineZeroPin() const {
+        return fineZeroPin_ != PIN_NONE;
+    }
+
+    bool hasAnyZeroPin() const {
+        return hasCoarseZeroPin() || hasFineZeroPin();
+    }
+
     bool isZeroActive() const {
-        if (zeroPin_ == PIN_NONE) return false;
-        int value = digitalRead(zeroPin_);
-        return value == zeroActiveState_;
+        return isPinActive(zeroPin_, zeroActiveState_);
     }
 
     long angleDegToSteps(float angleDeg) const {
@@ -220,10 +239,12 @@ private:
     }
 
     bool isCoarseZeroActive() const {
-        return isZeroActive();
+        if (hasCoarseZeroPin()) return isZeroActive();
+        return isFineZeroActive();
     }
 
     bool isFineZeroActive() const {
+        if (hasFineZeroPin()) return isPinActive(fineZeroPin_, fineZeroActiveState_);
         return isZeroActive();
     }
 
@@ -271,13 +292,24 @@ private:
 
     void startClearanceFromSwitch() {
         if (homingBackoffSteps_ <= 0L) {
-            startFineSeekSwitch();
+            startFineReleaseOrSeek();
             return;
         }
 
         setHomingMaxRpm(maxRpm_);
         moveAwayFromSwitch(homingBackoffSteps_);
         homeState_ = HOME_CLEAR_SWITCH;
+    }
+
+    void startFineReleaseOrSeek() {
+        if (isFineZeroActive()) {
+            setHomingMaxRpm(maxRpm_);
+            moveAwayFromSwitch(homingSeekTravelSteps());
+            homeState_ = HOME_RELEASE_FINE_SWITCH;
+            return;
+        }
+
+        startFineSeekSwitch();
     }
 
     void startFineSeekSwitch() {
@@ -306,7 +338,7 @@ private:
     }
 
     void startHomingWithOffset(long startOffsetSteps) {
-        if (zeroPin_ == PIN_NONE) return;
+        if (!hasAnyZeroPin()) return;
         if (startOffsetSteps == 0L) {
             startHomingSeek();
             return;
@@ -418,7 +450,19 @@ private:
                 return;
             }
 
-            startFineSeekSwitch();
+            startFineReleaseOrSeek();
+        }
+
+        if (homeState_ == HOME_RELEASE_FINE_SWITCH) {
+            if (!isFineZeroActive()) {
+                startFineSeekSwitch();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
+            } else {
+                stepper_.run();
+                return;
+            }
         }
 
         if (homeState_ == HOME_FINE_SEEK_SWITCH) {
@@ -507,7 +551,9 @@ private:
         uint8_t zeroActiveState,
         int8_t homeDirection,
         float zeroOffsetDeg,
-        unsigned int inputMaxValue
+        unsigned int inputMaxValue,
+        uint8_t fineZeroPin = PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) {
         continuous_ = continuous;
         continuousUseModulo_ = continuous;
@@ -520,6 +566,8 @@ private:
         inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;
         zeroPin_ = zeroPin;
         zeroActiveState_ = (zeroActiveState == HIGH) ? HIGH : LOW;
+        fineZeroPin_ = fineZeroPin;
+        fineZeroActiveState_ = (fineZeroActiveState == HIGH) ? HIGH : LOW;
         homeDirection_ = (homeDirection < 0) ? -1 : 1;
         zeroOffsetDeg_ = zeroOffsetDeg;
         homingStartOffsetSteps_ = 0L;
@@ -537,10 +585,13 @@ private:
         stepper_.setAcceleration(accelRpmPerSecToStepsPerSec2(accelRpmPerSec));
         stepper_.setCurrentPosition(0);
 
-        if (zeroPin_ == PIN_NONE) {
+        if (!hasAnyZeroPin()) {
             homeState_ = HOME_DONE;
         } else {
-            pinMode(zeroPin_, INPUT_PULLUP);
+            if (zeroPin_ != PIN_NONE) pinMode(zeroPin_, INPUT_PULLUP);
+            if (fineZeroPin_ != PIN_NONE && fineZeroPin_ != zeroPin_) {
+                pinMode(fineZeroPin_, INPUT_PULLUP);
+            }
             homeState_ = HOME_NONE;
         }
     }
@@ -583,7 +634,9 @@ public:
         int8_t homeDirection = ProfileT::kDefaultHomeDirection, // Homing direction while seeking the lowest physical angle
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
-        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
+        bool inputZeroCentered = false,          // True if the middle of the DCS-BIOS range should map to 0 degrees
+        uint8_t fineZeroPin = PIN_NONE,          // Optional fine zero detector input pin
+        uint8_t fineZeroActiveState = LOW        // Fine zero detector is active when it reads LOW or HIGH
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -607,7 +660,9 @@ public:
             zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
-            inputMaxValue
+            inputMaxValue,
+            fineZeroPin,
+            fineZeroActiveState
         );
         inputZeroCentered_ = inputZeroCentered;
     }
@@ -629,7 +684,9 @@ public:
         int8_t homeDirection,                    // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg,                     // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue,              // Maximum incoming DCS-BIOS value for this source
-        bool inputZeroCentered                   // True if the middle of the DCS-BIOS range should map to 0 degrees
+        bool inputZeroCentered,                  // True if the middle of the DCS-BIOS range should map to 0 degrees
+        uint8_t fineZeroPin = PIN_NONE,          // Optional fine zero detector input pin
+        uint8_t fineZeroActiveState = LOW        // Fine zero detector is active when it reads LOW or HIGH
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -653,7 +710,9 @@ public:
             zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
-            inputMaxValue
+            inputMaxValue,
+            fineZeroPin,
+            fineZeroActiveState
         );
         inputZeroCentered_ = inputZeroCentered;
     }
@@ -687,7 +746,9 @@ public:
         int8_t homeDirection = ProfileT::kDefaultHomeDirection, // Homing direction while seeking the lowest physical angle
         float zeroOffsetDeg = 0.0f,              // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue = 65535,      // Maximum incoming DCS-BIOS value for this source
-        bool inputZeroCentered = false           // True if the middle of the DCS-BIOS range should map to 0 degrees
+        bool inputZeroCentered = false,          // True if the middle of the DCS-BIOS range should map to 0 degrees
+        uint8_t fineZeroPin = PIN_NONE,          // Optional fine zero detector input pin
+        uint8_t fineZeroActiveState = LOW        // Fine zero detector is active when it reads LOW or HIGH
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -711,7 +772,9 @@ public:
             zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
-            inputMaxValue
+            inputMaxValue,
+            fineZeroPin,
+            fineZeroActiveState
         );
         inputZeroCentered_ = inputZeroCentered;
     }
@@ -735,7 +798,9 @@ public:
         int8_t homeDirection,                    // Homing direction: -1 or +1 while seeking zero
         float zeroOffsetDeg,                     // Zero Offset Degrees: fine adjustment after homing
         unsigned int inputMaxValue,              // Maximum incoming DCS-BIOS value for this source
-        bool inputZeroCentered                   // True if the middle of the DCS-BIOS range should map to 0 degrees
+        bool inputZeroCentered,                  // True if the middle of the DCS-BIOS range should map to 0 degrees
+        uint8_t fineZeroPin = PIN_NONE,          // Optional fine zero detector input pin
+        uint8_t fineZeroActiveState = LOW        // Fine zero detector is active when it reads LOW or HIGH
     ) : Int16Buffer(address),
         stepper_(
             ProfileT::kInterface,
@@ -759,7 +824,9 @@ public:
             zeroActiveState,
             homeDirection,
             zeroOffsetDeg,
-            inputMaxValue
+            inputMaxValue,
+            fineZeroPin,
+            fineZeroActiveState
         );
         inputZeroCentered_ = inputZeroCentered;
     }
@@ -984,7 +1051,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         pin1,
@@ -1002,7 +1071,9 @@ public:
         GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 
@@ -1014,8 +1085,10 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -1035,7 +1108,9 @@ public:
         GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 };
@@ -1049,7 +1124,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         pin1,
@@ -1067,7 +1144,9 @@ public:
         GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 
@@ -1079,8 +1158,10 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
-        uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -1100,7 +1181,9 @@ public:
         GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         65535,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 };
@@ -1114,7 +1197,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         pin1,
@@ -1130,7 +1215,9 @@ public:
         GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         360,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -1144,7 +1231,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        uint8_t zeroActiveState
+        uint8_t zeroActiveState,
+        uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<GenericStepperProfile>(
         address,
         mask,
@@ -1162,7 +1251,9 @@ public:
         GenericStepperProfile::kDefaultHomeDirection,
         0.0f,
         360,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -1177,7 +1268,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        uint8_t zeroActiveState
+        uint8_t zeroActiveState,
+        uint8_t fineZeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         pin1,
@@ -1195,7 +1288,9 @@ public:
         Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 
@@ -1208,7 +1303,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        uint8_t zeroActiveState
+        uint8_t zeroActiveState,
+        uint8_t fineZeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1228,7 +1325,9 @@ public:
         Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535U,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 };
@@ -1242,7 +1341,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         pin1,
@@ -1260,7 +1361,9 @@ public:
         Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 
@@ -1273,7 +1376,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        uint8_t zeroActiveState
+        uint8_t zeroActiveState,
+        uint8_t fineZeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1293,7 +1398,9 @@ public:
         Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         65535,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
     }
 };
@@ -1307,7 +1414,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
-        uint8_t zeroActiveState = LOW
+        uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         pin1,
@@ -1323,7 +1432,9 @@ public:
         Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         360,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -1337,7 +1448,9 @@ public:
         uint8_t pin3,
         uint8_t pin4,
         uint8_t zeroPin,
-        uint8_t zeroActiveState
+        uint8_t zeroActiveState,
+        uint8_t fineZeroPin = EasyStepperOutputT<Stepper28Byj48Profile>::PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) : EasyStepperOutputT<Stepper28Byj48Profile>(
         address,
         mask,
@@ -1355,7 +1468,9 @@ public:
         Stepper28Byj48Profile::kDefaultHomeDirection,
         0.0f,
         360,
-        false
+        false,
+        fineZeroPin,
+        fineZeroActiveState
     ) {
         this->configureContinuousBehavior(true, true, true);
     }
@@ -1380,6 +1495,7 @@ private:
         HOME_COARSE_SEEK_SWITCH,
         HOME_RELEASE_SWITCH,
         HOME_CLEAR_SWITCH,
+        HOME_RELEASE_FINE_SWITCH,
         HOME_FINE_SEEK_SWITCH,
         HOME_STOP_AT_ZERO,
         HOME_FAILED,
@@ -1407,6 +1523,8 @@ private:
 
     uint8_t zeroPin_;
     uint8_t zeroActiveState_;
+    uint8_t fineZeroPin_;
+    uint8_t fineZeroActiveState_;
     int8_t homeDirection_;
     float zeroOffsetDeg_;
     long homingStartOffsetSteps_;
@@ -1496,10 +1614,26 @@ private:
         return candidate;
     }
 
+    bool isPinActive(uint8_t pin, uint8_t activeState) const {
+        if (pin == PIN_NONE) return false;
+        int value = digitalRead(pin);
+        return value == activeState;
+    }
+
+    bool hasCoarseZeroPin() const {
+        return zeroPin_ != PIN_NONE;
+    }
+
+    bool hasFineZeroPin() const {
+        return fineZeroPin_ != PIN_NONE;
+    }
+
+    bool hasAnyZeroPin() const {
+        return hasCoarseZeroPin() || hasFineZeroPin();
+    }
+
     bool isZeroActive() const {
-        if (zeroPin_ == PIN_NONE) return false;
-        int value = digitalRead(zeroPin_);
-        return value == zeroActiveState_;
+        return isPinActive(zeroPin_, zeroActiveState_);
     }
 
     long angleDegToSteps(float angleDeg) const {
@@ -1524,10 +1658,12 @@ private:
     }
 
     bool isCoarseZeroActive() const {
-        return isZeroActive();
+        if (hasCoarseZeroPin()) return isZeroActive();
+        return isFineZeroActive();
     }
 
     bool isFineZeroActive() const {
+        if (hasFineZeroPin()) return isPinActive(fineZeroPin_, fineZeroActiveState_);
         return isZeroActive();
     }
 
@@ -1575,13 +1711,24 @@ private:
 
     void startClearanceFromSwitch() {
         if (homingBackoffSteps_ <= 0L) {
-            startFineSeekSwitch();
+            startFineReleaseOrSeek();
             return;
         }
 
         setHomingMaxRpm(maxRpm_);
         moveAwayFromSwitch(homingBackoffSteps_);
         homeState_ = HOME_CLEAR_SWITCH;
+    }
+
+    void startFineReleaseOrSeek() {
+        if (isFineZeroActive()) {
+            setHomingMaxRpm(maxRpm_);
+            moveAwayFromSwitch(homingSeekTravelSteps());
+            homeState_ = HOME_RELEASE_FINE_SWITCH;
+            return;
+        }
+
+        startFineSeekSwitch();
     }
 
     void startFineSeekSwitch() {
@@ -1610,7 +1757,7 @@ private:
     }
 
     void startHomingWithOffset(long startOffsetSteps) {
-        if (zeroPin_ == PIN_NONE) return;
+        if (!hasAnyZeroPin()) return;
         if (startOffsetSteps == 0L) {
             startHomingSeek();
             return;
@@ -1665,7 +1812,9 @@ private:
         uint8_t zeroActiveState,
         int8_t homeDirection,
         float zeroOffsetDeg,
-        unsigned int inputMaxValue
+        unsigned int inputMaxValue,
+        uint8_t fineZeroPin = PIN_NONE,
+        uint8_t fineZeroActiveState = LOW
     ) {
         continuous_ = continuous;
         minAngleDeg_ = minAngleDeg;
@@ -1677,12 +1826,14 @@ private:
 
         zeroPin_ = zeroPin;
         zeroActiveState_ = (zeroActiveState == HIGH) ? HIGH : LOW;
+        fineZeroPin_ = fineZeroPin;
+        fineZeroActiveState_ = (fineZeroActiveState == HIGH) ? HIGH : LOW;
         homeDirection_ = (homeDirection < 0) ? -1 : 1;
         zeroOffsetDeg_ = zeroOffsetDeg;
         homingStartOffsetSteps_ = 0L;
         homingBackoffSteps_ = kDefaultHomingBackoffSteps;
         homingReferencePosition_ = 0L;
-        homeState_ = (zeroPin_ == PIN_NONE) ? HOME_DONE : HOME_NONE;
+        homeState_ = hasAnyZeroPin() ? HOME_NONE : HOME_DONE;
 
         maxRpm_ = maxRpm;
         stepper_.setMaxSpeed(rpmToStepsPerSecond(maxRpm_));
@@ -1696,6 +1847,10 @@ private:
 
         if (zeroPin_ != PIN_NONE) {
             pinMode(zeroPin_, INPUT_PULLUP);
+        }
+
+        if (fineZeroPin_ != PIN_NONE && fineZeroPin_ != zeroPin_) {
+            pinMode(fineZeroPin_, INPUT_PULLUP);
         }
 
         setContinuousBehaviorFlags(false, false, false);
@@ -1769,7 +1924,19 @@ private:
                 return;
             }
 
-            startFineSeekSwitch();
+            startFineReleaseOrSeek();
+        }
+
+        if (homeState_ == HOME_RELEASE_FINE_SWITCH) {
+            if (!isFineZeroActive()) {
+                startFineSeekSwitch();
+            } else if (stepper_.distanceToGo() == 0L) {
+                failHoming();
+                return;
+            } else {
+                stepper_.run();
+                return;
+            }
         }
 
         if (homeState_ == HOME_FINE_SEEK_SWITCH) {
@@ -1802,6 +1969,8 @@ public:
         uint8_t pin4,
         uint8_t zeroPin = PIN_NONE,
         uint8_t zeroActiveState = LOW,
+        uint8_t fineZeroPin = PIN_NONE,
+        uint8_t fineZeroActiveState = LOW,
         unsigned int inputMaxValue = 65535
     ) : stepper_(
         ProfileT::kInterface,
@@ -1822,7 +1991,9 @@ public:
             zeroActiveState,
             ProfileT::kDefaultHomeDirection,
             0.0f,
-            inputMaxValue
+            inputMaxValue,
+            fineZeroPin,
+            fineZeroActiveState
         );
     }
 

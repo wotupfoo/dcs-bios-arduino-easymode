@@ -36,6 +36,11 @@ This file is guidance for AI coding agents† such as OpenAI Codex when they wor
 - For stepper changes, check both normal DCS-driven steppers and manual steppers when relevant.
 - For public API changes, update or compile at least one representative example.
 
+## Git Workflow
+
+- When the user says "give me a commit", provide commit message text only: a concise summary line and a short descriptive body suitable for `git commit`.
+- Do not run `git commit`, stage files, or modify Git history unless the user explicitly asks for that operation.
+
 ## Useful Compile Checks
 
 - Nano-targeted active example:

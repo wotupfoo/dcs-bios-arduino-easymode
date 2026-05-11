@@ -541,6 +541,7 @@ A beginner will usually only need to change:
 - Arduino pin numbers
 - zero detection pin
 - whether the zero switch is active when the pin reads `LOW` or `HIGH`
+- optional fine zero detection pin and its active state
 - whether the instrument value starts at zero or is centered around zero
 - maximum angle
 - minimum angle
@@ -548,7 +549,7 @@ A beginner will usually only need to change:
 
 For steppers, keep this split in mind:
 
-- The object line is physical wiring: telemetry source, motor pins, optional zero switch pin, and whether that switch reads `LOW` or `HIGH` when active.
+- The object line is physical wiring: telemetry source, motor pins, optional zero switch pins, and whether each switch reads `LOW` or `HIGH` when active.
 - The setup lines describe behavior: one-turn or multi-turn travel, centered-zero motion, wrap-around motion, trim, and whether to home at startup.
 
 Example stepper object line:
@@ -569,7 +570,27 @@ In that example, pins `8`, `9`, `10`, and `11` go to the stepper driver. Pin `12
 
 Use `LOW` for the common Arduino wiring style where the input uses a pullup and the switch pulls the pin to ground when triggered. Use `HIGH` when your sensor or switch circuit normally holds the pin low and drives it high when triggered.
 
+Some geared instruments need two zero detectors. For example, an altimeter can use a coarse zero detector on a slow 10,000-foot shaft and a fine zero detector on the 100-foot shaft. Put the fine zero pin and its active state after the coarse zero pin and active state:
+
+```cpp
+DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
+    CommonData_ALT_MSL_FT_A,
+    8,
+    9,
+    10,
+    11,
+    A0,
+    HIGH,
+    A1,
+    HIGH
+);
+```
+
+In that example, `A0` is the coarse zero detector and `A1` is the fine zero detector. Both are active when the Arduino input reads `HIGH`.
+
 If there is no zero switch, use `DcsBios::EasyMode::NoPin` in the zero pin position. Homing only works when a real zero switch or sensor is connected.
+
+If there is one zero detector, leave out the fine zero pin and active state. The fine homing pass uses the same zero detector as the coarse pass.
 
 Example setup lines:
 
@@ -592,12 +613,12 @@ Two different "zero" ideas appear in stepper sketches:
 
 What `home()` does for a stepper:
 
-1. If the zero switch is already active, move away from the switch first.
-2. If the switch does not release after that backoff move, stop homing and report a homing fault.
-3. If the switch is not active, move toward the zero switch until it is found.
-4. Move away from the switch to clear it.
-5. Move slowly back toward the switch and stop when it is found again.
-6. Mark the current position as the stepper's zero position.
+1. Move toward the coarse zero detector until it is found. If the detector is already active, start by moving away from it.
+2. Move away from the coarse detector until it releases.
+3. Continue moving away by the configured clearance distance.
+4. If a fine zero detector is configured and it is already active, keep moving away until the fine detector releases.
+5. Move slowly back toward zero and stop when the fine detector is found. If no fine detector is configured, this slow pass uses the coarse detector again.
+6. Mark the detected fine edge as the stepper's zero reference.
 
 For the built-in `Stepper_28BYJ48` defaults, the first search direction is counter-clockwise. If the needle starts on the switch, the first backoff move is clockwise, away from zero.
 
