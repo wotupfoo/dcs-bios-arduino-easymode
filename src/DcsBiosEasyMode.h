@@ -69,7 +69,7 @@ using MatSwitch3Pos = EasyModeRefreshableInputT<DcsBios::MatSwitch3Pos>;
 
 using AnalogMultiPos = EasyModeRefreshableInputT<EasyModeAnalogMultiPos>;
 using RotarySwitch = EasyModeRefreshableInputT<EasyModeRotarySwitch<>>;
-using Potentiometer = EasyModeRefreshableInputT<DcsBios::Potentiometer>;
+using Potentiometer = EasyModeRefreshableInputT<EasyModePotentiometer>;
 using RotaryEncoder = DcsBios::RotaryEncoder;
 using RotaryAcceleratedEncoder = DcsBios::RotaryAcceleratedEncoder;
 using MatRotaryEncoder = DcsBios::MatRotaryEncoder;
