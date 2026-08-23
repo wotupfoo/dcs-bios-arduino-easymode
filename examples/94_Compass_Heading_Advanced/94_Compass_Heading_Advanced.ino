@@ -28,7 +28,7 @@ DcsBios::EasyMode::Stepper compassCard(
     9,                 // Stepper driver input pin 2
     10,                // Stepper driver input pin 3
     11,                // Stepper driver input pin 4
-    STEPS_PER_OUTPUT_REVOLUTION, // Stepper motor steps per revolution at the output shaft
+    STEPS_PER_OUTPUT_REVOLUTION, // Stepper steps per output shaft revolution after any gearing
     12,                // Zero angle detection input pin
     LOW                // Zero switch is active when the pin reads LOW
 );
