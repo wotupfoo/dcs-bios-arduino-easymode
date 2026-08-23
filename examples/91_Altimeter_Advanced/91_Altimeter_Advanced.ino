@@ -47,12 +47,15 @@
  * So, 65,535 max alititude becomes 235800.0f max angle in degrees.
  *
  */
+const long STEPS_PER_OUTPUT_REVOLUTION = 200;
+
 DcsBios::EasyMode::Stepper altimeterNeedle(
     CommonData_ALT_MSL_FT_A, // Telemetry source: altitude above mean sea level in feet
     8,                      // Stepper driver input pin 1
     9,                      // Stepper driver input pin 2
     10,                     // Stepper driver input pin 3
     11,                     // Stepper driver input pin 4
+    STEPS_PER_OUTPUT_REVOLUTION, // Stepper motor steps per revolution at the output shaft
     12,                     // Zero angle detection input pin
     LOW                     // Zero switch is active when the pin reads LOW
 );
@@ -66,3 +69,5 @@ void setup() {
 void loop() {
     DcsBios::EasyMode::loop();
 }
+
+

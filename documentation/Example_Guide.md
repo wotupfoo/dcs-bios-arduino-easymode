@@ -504,7 +504,7 @@ Examples:
 
 - SG90 servo: choose the `DcsBios::EasyMode::Servo_SG90` snippet.
 - Generic servo: choose the `DcsBios::EasyMode::Servo` snippet.
-- Generic stepper: choose a `DcsBios::EasyMode::Stepper` snippet.
+- Generic stepper: choose a `DcsBios::EasyMode::Stepper` snippet and provide the motor steps per revolution at the output shaft.
 - 28BYJ-48 stepper: choose a `DcsBios::EasyMode::Stepper_28BYJ48` snippet.
 
 ## Step 18: Copy The Snippet From Bort-EasyMode
@@ -549,7 +549,7 @@ A beginner will usually only need to change:
 
 For steppers, keep this split in mind:
 
-- The object line is physical wiring: telemetry source, motor pins, optional zero switch pins, and whether each switch reads `LOW` or `HIGH` when active.
+- The object line is physical setup: telemetry source, motor pins, the generic stepper steps per output-shaft revolution, optional zero switch pins, and whether each switch reads `LOW` or `HIGH` when active.
 - The setup lines describe behavior: one-turn or multi-turn travel, centered-zero motion, wrap-around motion, trim, and whether to home at startup.
 
 Example stepper object line:
@@ -567,6 +567,8 @@ DcsBios::EasyMode::Stepper_28BYJ48 altimeterNeedle(
 ```
 
 In that example, pins `8`, `9`, `10`, and `11` go to the stepper driver. Pin `12` is the zero detection input. `LOW` means the switch is triggered when the Arduino input reads `LOW`.
+
+Generic `DcsBios::EasyMode::Stepper` snippets also include a steps-per-output-revolution argument after the four motor pins. Use the number of step pulses needed to rotate the output shaft one full turn after any gearbox built into the motor. A common directly driven 1.8-degree stepper uses `200`; a geared motor uses the gearbox output value. The `Stepper_28BYJ48` snippets already know their 28BYJ-48/ULN2003 profile, so they do not ask for this value.
 
 Use `LOW` for the common Arduino wiring style where the input uses a pullup and the switch pulls the pin to ground when triggered. Use `HIGH` when your sensor or switch circuit normally holds the pin low and drives it high when triggered.
 
@@ -1149,3 +1151,4 @@ An important part of that work was research. The AI was able to study the surrou
 That same collaboration also helped identify a broader design problem: DCS-BIOS and Bort were powerful tools, but they often assumed more software knowledge than many builders have or want to have. Many users are strong in aircraft systems, electronics, and physical fabrication, but may not be comfortable with programming language, software abstractions, or reading raw code. A major goal of this project was therefore to reduce that barrier and reshape the experience so it felt more welcoming to non-programmers.
 
 With that goal in mind, the AI helped reshape both the code and the user experience. It contributed to the design and implementation of DCS-BIOS EasyMode, created example sketches based on real DCS World telemetry, modified Bort so its generated snippets were easier to understand and copy into Arduino IDE, and helped produce beginner-friendly instructions for installing and using the whole toolchain. The result is not only a set of software changes, but also a more accessible workflow for people who want to build virtual cockpit hardware without needing to think like professional software developers.
+

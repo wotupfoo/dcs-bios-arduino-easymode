@@ -80,6 +80,7 @@ private:
     unsigned int address_;
     float maxRpm_;
     FaultCallback faultCallback_;
+    long stepsPerOutputRev_;
     bool timingFaultLatched_;
     float faultToleranceMultiplier_;
     unsigned long lastServiceUs_;
@@ -109,12 +110,12 @@ private:
     long homingReferencePosition_;
     HomeState homeState_;
 
-    static float rpmToStepsPerSecond(float rpm) {
-        return (rpm * (float)ProfileT::kStepsPerOutputRev) / 60.0f;
+    float rpmToStepsPerSecond(float rpm) const {
+        return (rpm * (float)stepsPerOutputRev_) / 60.0f;
     }
 
-    static float accelRpmPerSecToStepsPerSec2(float accelRpmPerSec) {
-        return (accelRpmPerSec * (float)ProfileT::kStepsPerOutputRev) / 60.0f;
+    float accelRpmPerSecToStepsPerSec2(float accelRpmPerSec) const {
+        return (accelRpmPerSec * (float)stepsPerOutputRev_) / 60.0f;
     }
 
     static unsigned long stepsPerSecondToIntervalUs(float stepsPerSecond) {
@@ -218,7 +219,7 @@ private:
     }
 
     long angleDegToSteps(float angleDeg) const {
-        return roundToLong((angleDeg / 360.0f) * (float)ProfileT::kStepsPerOutputRev);
+        return roundToLong((angleDeg / 360.0f) * (float)stepsPerOutputRev_);
     }
 
     long homingOffsetDegToSteps(float angleDeg) const {
@@ -249,7 +250,7 @@ private:
     }
 
     long homingSeekTravelSteps() const {
-        return ProfileT::kStepsPerOutputRev * 10000L;
+        return stepsPerOutputRev_ * 10000L;
     }
 
     static long stepMagnitude(long steps) {
@@ -392,19 +393,19 @@ private:
         long targetSteps = angleDegToSteps(targetAngleDeg) + zeroOffsetSteps();
         if (!continuousUseModulo_) return targetSteps;
 
-        long normalizedTarget = positiveModulo(targetSteps, ProfileT::kStepsPerOutputRev);
+        long normalizedTarget = positiveModulo(targetSteps, stepsPerOutputRev_);
         if (continuousUseShortestPath_) {
             return chooseNearestEquivalent(
                 stepper_.currentPosition(),
                 normalizedTarget,
-                ProfileT::kStepsPerOutputRev
+                stepsPerOutputRev_
             );
         }
 
         return chooseDirectionalEquivalent(
             stepper_.currentPosition(),
             normalizedTarget,
-            ProfileT::kStepsPerOutputRev
+            stepsPerOutputRev_
         );
     }
 
@@ -552,6 +553,7 @@ private:
         int8_t homeDirection,
         float zeroOffsetDeg,
         unsigned int inputMaxValue,
+        long stepsPerOutputRev = ProfileT::kStepsPerOutputRev,
         uint8_t fineZeroPin = PIN_NONE,
         uint8_t fineZeroActiveState = LOW
     ) {
@@ -564,6 +566,7 @@ private:
         trimDeg_ = trimDeg;
         reverse_ = reverse;
         inputMaxValue_ = inputMaxValue ? inputMaxValue : 65535;
+        stepsPerOutputRev_ = (stepsPerOutputRev > 0L) ? stepsPerOutputRev : ProfileT::kStepsPerOutputRev;
         zeroPin_ = zeroPin;
         zeroActiveState_ = (zeroActiveState == HIGH) ? HIGH : LOW;
         fineZeroPin_ = fineZeroPin;
@@ -625,6 +628,7 @@ public:
         uint8_t pin2,                            // Stepper driver input pin 2
         uint8_t pin3,                            // Stepper driver input pin 3
         uint8_t pin4,                            // Stepper driver input pin 4
+        long stepsPerOutputRev,                  // Stepper motor steps per revolution at the output shaft
         bool reverse = false,                    // Reverse the direction (true or false)
         float trimDeg = 0.0f,                    // Trim Degrees: rotate the whole repeating scale around the dial face
         float maxRpm = ProfileT::kDefaultMaxRpm, // Maximum Speed in Revolutions Per Minute (RPM)
@@ -661,6 +665,7 @@ public:
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue,
+            stepsPerOutputRev,
             fineZeroPin,
             fineZeroActiveState
         );
@@ -675,6 +680,7 @@ public:
         uint8_t pin2,                            // Stepper driver input pin 2
         uint8_t pin3,                            // Stepper driver input pin 3
         uint8_t pin4,                            // Stepper driver input pin 4
+        long stepsPerOutputRev,                  // Stepper motor steps per revolution at the output shaft
         bool reverse,                            // Reverse the direction (true or false)
         float trimDeg,                           // Trim Degrees: rotate the whole repeating scale around the dial face
         float maxRpm,                            // Maximum Speed in Revolutions Per Minute (RPM)
@@ -711,6 +717,7 @@ public:
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue,
+            stepsPerOutputRev,
             fineZeroPin,
             fineZeroActiveState
         );
@@ -735,6 +742,7 @@ public:
         uint8_t pin2,                            // Stepper driver input pin 2
         uint8_t pin3,                            // Stepper driver input pin 3
         uint8_t pin4,                            // Stepper driver input pin 4
+        long stepsPerOutputRev,                  // Stepper motor steps per revolution at the output shaft
         float minAngleDeg,                       // Minimum needle angle in degrees for the lowest DCS-BIOS value
         float maxAngleDeg,                       // Maximum needle angle in degrees for the highest DCS-BIOS value
         bool reverse = false,                    // Reverse the direction (true or false)
@@ -773,6 +781,7 @@ public:
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue,
+            stepsPerOutputRev,
             fineZeroPin,
             fineZeroActiveState
         );
@@ -787,6 +796,7 @@ public:
         uint8_t pin2,                            // Stepper driver input pin 2
         uint8_t pin3,                            // Stepper driver input pin 3
         uint8_t pin4,                            // Stepper driver input pin 4
+        long stepsPerOutputRev,                  // Stepper motor steps per revolution at the output shaft
         float minAngleDeg,                       // Minimum needle angle in degrees for the lowest DCS-BIOS value
         float maxAngleDeg,                       // Maximum needle angle in degrees for the highest DCS-BIOS value
         bool reverse,                            // Reverse the direction (true or false)
@@ -825,6 +835,7 @@ public:
             homeDirection,
             zeroOffsetDeg,
             inputMaxValue,
+            stepsPerOutputRev,
             fineZeroPin,
             fineZeroActiveState
         );
@@ -1050,6 +1061,7 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
+        long stepsPerOutputRev,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
         uint8_t zeroActiveState = LOW,
         uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
@@ -1060,6 +1072,7 @@ public:
         pin2,
         pin3,
         pin4,
+        stepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1085,6 +1098,7 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
+        long stepsPerOutputRev,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
         uint8_t zeroActiveState = LOW,
         uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
@@ -1097,6 +1111,7 @@ public:
         pin2,
         pin3,
         pin4,
+        stepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1123,6 +1138,7 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
+        long stepsPerOutputRev,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
         uint8_t zeroActiveState = LOW,
         uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
@@ -1133,6 +1149,7 @@ public:
         pin2,
         pin3,
         pin4,
+        stepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1158,6 +1175,7 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
+        long stepsPerOutputRev,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
         uint8_t zeroActiveState = LOW,
         uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
@@ -1170,6 +1188,7 @@ public:
         pin2,
         pin3,
         pin4,
+        stepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1196,6 +1215,7 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
+        long stepsPerOutputRev,
         uint8_t zeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
         uint8_t zeroActiveState = LOW,
         uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
@@ -1206,6 +1226,7 @@ public:
         pin2,
         pin3,
         pin4,
+        stepsPerOutputRev,
         false,
         0.0f,
         GenericStepperProfile::kDefaultMaxRpm,
@@ -1230,6 +1251,7 @@ public:
         uint8_t pin2,
         uint8_t pin3,
         uint8_t pin4,
+        long stepsPerOutputRev,
         uint8_t zeroPin,
         uint8_t zeroActiveState,
         uint8_t fineZeroPin = EasyStepperOutputT<GenericStepperProfile>::PIN_NONE,
@@ -1242,6 +1264,7 @@ public:
         pin2,
         pin3,
         pin4,
+        stepsPerOutputRev,
         false,
         0.0f,
         GenericStepperProfile::kDefaultMaxRpm,
@@ -1277,6 +1300,7 @@ public:
         pin2,
         pin3,
         pin4,
+        Stepper28Byj48Profile::kStepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1314,6 +1338,7 @@ public:
         pin2,
         pin3,
         pin4,
+        Stepper28Byj48Profile::kStepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1350,6 +1375,7 @@ public:
         pin2,
         pin3,
         pin4,
+        Stepper28Byj48Profile::kStepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1387,6 +1413,7 @@ public:
         pin2,
         pin3,
         pin4,
+        Stepper28Byj48Profile::kStepsPerOutputRev,
         0.0f,
         360.0f,
         false,
@@ -1423,6 +1450,7 @@ public:
         pin2,
         pin3,
         pin4,
+        Stepper28Byj48Profile::kStepsPerOutputRev,
         false,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
@@ -1459,6 +1487,7 @@ public:
         pin2,
         pin3,
         pin4,
+        Stepper28Byj48Profile::kStepsPerOutputRev,
         false,
         0.0f,
         Stepper28Byj48Profile::kDefaultMaxRpm,
@@ -2115,3 +2144,4 @@ public:
 } // namespace DcsBios
 
 #endif
+

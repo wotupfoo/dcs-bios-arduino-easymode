@@ -20,12 +20,15 @@
  * If you are driving a mechanism that should stay between 0 and 360 degrees
  * instead, leave out the compassCard.wrapAround() line in setup().
  */
+const long STEPS_PER_OUTPUT_REVOLUTION = 200;
+
 DcsBios::EasyMode::Stepper compassCard(
     CommonData_HDG_DEG, // Telemetry source: heading in degrees
     8,                 // Stepper driver input pin 1
     9,                 // Stepper driver input pin 2
     10,                // Stepper driver input pin 3
     11,                // Stepper driver input pin 4
+    STEPS_PER_OUTPUT_REVOLUTION, // Stepper motor steps per revolution at the output shaft
     12,                // Zero angle detection input pin
     LOW                // Zero switch is active when the pin reads LOW
 );
@@ -40,3 +43,5 @@ void setup() {
 void loop() {
     DcsBios::EasyMode::loop();
 }
+
+
