@@ -23,15 +23,6 @@ namespace EasyMode {
 // The constructors accept this and map it to the library's internal "no pin" value.
 static constexpr int NoPin = -1;
 
-inline void setup() {
-    DcsBios::setup();
-}
-
-inline void loop() {
-    DcsBios::serviceEasyModeRefreshes();
-    DcsBios::loop();
-}
-
 inline void refreshInterval(unsigned long intervalMs) {
     DcsBios::setEasyModeRefreshInterval(intervalMs);
 }
@@ -52,12 +43,11 @@ inline void resetAllStates() {
     DcsBios::resetAllStates();
 }
 
+// ==============================
+// Calibration helpers
+// ==============================
 inline bool loadCalibration(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
     return DcsBios::loadEasyModeCalibrationFromEEPROM(eepromAddress);
-}
-
-inline void beginCalibration() {
-    DcsBios::beginEasyModeCalibration();
 }
 
 inline bool updateCalibration() {
@@ -72,14 +62,12 @@ inline bool saveCalibrationIfChanged(int eepromAddress = DcsBios::EASYMODE_EEPRO
     return DcsBios::saveEasyModeCalibrationToEEPROMIfChanged(eepromAddress);
 }
 
-inline bool serviceCalibration(Print& out, int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
-    return DcsBios::serviceEasyModeCalibration(out, eepromAddress);
-}
-
 inline bool calibrationIsValid() {
     return DcsBios::easyModeCalibrationIsValid();
 }
 
+// ==============================
+// Reboot helpers
 inline void reboot_disable() {
 #if defined(__AVR__)
     wdt_disable();
@@ -87,10 +75,39 @@ inline void reboot_disable() {
 }
 
 inline void reboot() {
+    Serial.println("Rebooting");
 #if defined(__AVR__)
     wdt_enable(WDTO_15MS);
     while (true) {}
 #endif
+}
+
+// ==============================
+// Called by sketch in setup() in Calibration Mode
+inline void setupCalibration() {
+    Serial.begin(250000);
+    Serial.println("Entering Calibration Mode");
+    DcsBios::beginEasyModeCalibration();
+}
+
+// ==============================
+// called in sketch setup() in Normal Mode
+inline void setup(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    DcsBios::EasyMode::loadCalibration(eepromAddress);
+    DcsBios::setup();
+}
+
+// ==============================
+// Called by sketch in loop() in Calibration Mode
+inline bool loopCalibration(Print& out, int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    return DcsBios::serviceEasyModeCalibration(out, eepromAddress);
+}
+
+// ==============================
+// called in sketch loop() in Normal Mode
+inline void loop() {
+    DcsBios::serviceEasyModeRefreshes();
+    DcsBios::loop();
 }
 
 // Only maintained-state inputs participate in periodic refreshes.

@@ -35,11 +35,11 @@
  */
 
  // Analog inputs
-#define PIN_THROTTLE_PROP_CONTROL_R     A0
-#define PIN_THROTTLE_PROP_CONTROL_L     A1
-#define PIN_THROTTLE_CONTROL_R          A2
-#define PIN_THROTTLE_CONTROL_L          A3
 #define PIN_MIXTURE                     A4
+#define PIN_THROTTLE_CONTROL_L          A3
+#define PIN_THROTTLE_CONTROL_R          A2
+#define PIN_THROTTLE_PROP_CONTROL_L     A1
+#define PIN_THROTTLE_PROP_CONTROL_R     A0
 
 // Digital inputs
 #define PIN_SUPERCHARGER                3
@@ -48,7 +48,6 @@
 // Set the digital input to check on bootup to go into Calibration Mode
 //#define CALIBRATION_MODE_BUTTON       5    // Dedicated pin (see diagram above)
 #define CALIBRATION_MODE_BUTTON         PIN_RKT_FIRING_SW // Use the Rocket Button
-
 
 #else
 #error "Unsupported board - Please use an Arduino Nano or implement your own"
@@ -110,8 +109,6 @@ void setup() {
     // Disable the Watchdog Timer (used to reboot out of Calibration mode)
     DcsBios::EasyMode::reboot_disable();
 
-    pinMode(LED_BUILTIN, OUTPUT);   // Used to show operating mode
-
 #if defined(ARDUINO_AVR_NANO)
     /* Optionally set the Nano ADC to use a clean external reference 
      * voltage for the analog to digital (adc) converter.
@@ -130,19 +127,14 @@ void setup() {
      * Particularly important for Hall Effect sensors since they are 
      * no where near the full 0..5v analog range ([0..1023]) */
     pinMode(CALIBRATION_MODE_BUTTON, INPUT_PULLUP);
-    calibrationMode = digitalRead(CALIBRATION_MODE_BUTTON) == LOW;
+    calibrationMode = buttonPressedDebounced(CALIBRATION_MODE_BUTTON, LOW);
 
     if(calibrationMode) {
         // CALIBRATION MODE
-        digitalWrite(LED_BUILTIN, HIGH);
-        Serial.begin(250000);
-        Serial.println("Entering Calibration Mode");
-        DcsBios::EasyMode::beginCalibration();
+        DcsBios::EasyMode::setupCalibration();
     }
     else {
         // NORMAL DCS BIOS MODE
-        digitalWrite(LED_BUILTIN, LOW);
-        DcsBios::EasyMode::loadCalibration();
         DcsBios::EasyMode::setup();
 
         /* DCS can get out of sync with inputs because on game load they can be
@@ -185,12 +177,11 @@ void loop() {
         /* Move all inputs through the full range of travel to find the 
          * minimum and maximum values. */
 
-        DcsBios::EasyMode::serviceCalibration(Serial);
+        DcsBios::EasyMode::loopCalibration(Serial);
 
         /* If the rocket firing switch has been released (HIGH), 
          * reboot (using a watchdog timeout) into normal operation */
         if(buttonPressedDebounced(CALIBRATION_MODE_BUTTON, HIGH)) {
-            Serial.println("Rebooting");
             DcsBios::EasyMode::reboot();
         }
 
