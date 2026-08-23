@@ -1,0 +1,6 @@
+#Arduino AVR based boards
+default_fqbn: arduino:avr:mega
+
+#Arduino Due w/ SAM3X8E ARM Cortex-M3
+#default_fqbn: arduino:sam:arduino_due_x #Normal Port
+#default_fqbn: arduino:sam:arduino_due_x_dbg  #Debugging Port
