@@ -109,6 +109,7 @@ function findFirstFileByExtension(rootDir, extension) {
 function writePackageReadme(packageDir, version) {
   writeFileSync(path.join(packageDir, 'README.txt'), [
     'DCS-BIOS EasyMode Mosquito Nano Firmware',
+    'https://github.com/wotupfoo/dcs-bios-arduino-easymode',
     `Version: ${version}`,
     '',
     'This package contains prebuilt Arduino Nano firmware for Mosquito cockpit controls.',
