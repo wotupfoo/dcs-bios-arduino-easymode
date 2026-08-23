@@ -624,8 +624,135 @@ For the built-in `Stepper_28BYJ48` defaults, the first search direction is count
 
 If a zero switch wire breaks in a way that makes the input look permanently active, homing should stop in a fault instead of driving the needle forever. Advanced sketches can check that with `hasHomingFault()`.
 
-## Step 20: Build And Upload Your Own Sketch
+## Analog Input Calibration
 
+EasyMode analog input constructors take the ADC span for the board or analog-read configuration, not the measured min/max travel of the physical control.
+
+The Arduino Nano ADC span is normally `1024`, which means `analogRead()` returns `0..1023`. A Hall sensor or potentiometer may only move through part of that domain, such as `289..860`; EasyMode learns that physical travel during calibration and stores the learned range in EEPROM internally.
+
+For an absolute DCS-BIOS analog command, use `Potentiometer`:
+
+```cpp
+static const uint16_t ADC_SPAN = 1024;
+
+DcsBios::EasyMode::Potentiometer throttleControlL("THROTTLE_CONTROL_L",
+                                        PIN_THROTTLE_CONTROL_L,
+                                        true,     // reverse
+                                        ADC_SPAN,
+                                        3);       // raw hysteresis, ADC counts
+```
+
+Constructor arguments:
+
+- control name: the DCS-BIOS control message, such as `"THROTTLE_CONTROL_L"`
+- pin: the Arduino analog input pin
+- reverse: `true` swaps the direction of the output
+- ADC span: the size of the raw ADC domain, normally `1024` on Nano
+- raw hysteresis: the amount the raw ADC input must move before EasyMode sends a new value
+
+`Potentiometer` still sends the normal DCS-BIOS analog output range, `0..65535`. Calibration maps the learned raw travel range to that output range. Without valid EEPROM calibration, an EasyMode calibration-aware sketch will not send analog output for that input.
+
+For a discrete control read through an analog input, use `AnalogMultiPos`:
+
+```cpp
+DcsBios::EasyMode::AnalogMultiPos mixture("MIXTURE",
+                                        PIN_MIXTURE,
+                                        1,        // positions (0,1)
+                                        ADC_SPAN,
+                                        3);       // raw hysteresis, ADC counts
+```
+
+`AnalogMultiPos` maps the calibrated raw ADC range into selector states. With `numOfSteps` set to `1`, the control behaves like a two-state analog switch: below the midpoint sends `0`, above the midpoint sends `1`. The raw hysteresis acts like a Schmitt trigger around the boundary so sensor noise does not repeatedly flip the state.
+
+The same EasyMode calibration storage is also used by `RotarySyncingPotentiometer` and `AnalogSyncingRocker`. Their constructors also take the ADC span instead of measured min/max values.
+
+A sketch can keep the calibration-mode button decision locally and let EasyMode handle EEPROM storage. Set any ADC reference in `setup()` before calibration service or normal EasyMode polling starts:
+
+```cpp
+void setup() {
+    DcsBios::EasyMode::reboot_disable();
+
+#if defined(ARDUINO_AVR_NANO)
+    // analogReference(EXTERNAL);
+#endif
+
+    pinMode(CALIBRATION_MODE_BUTTON, INPUT_PULLUP);
+    calibrationMode = digitalRead(CALIBRATION_MODE_BUTTON) == LOW;
+
+    if (calibrationMode) {
+        Serial.begin(250000);
+        DcsBios::EasyMode::beginCalibration();
+    } else {
+        DcsBios::EasyMode::loadCalibration();
+        DcsBios::EasyMode::setup();
+    }
+}
+
+void loop() {
+    if (calibrationMode) {
+        DcsBios::EasyMode::serviceCalibration(Serial);
+        delay(1000);
+
+        if (digitalRead(CALIBRATION_MODE_BUTTON) == HIGH) {
+            Serial.println("Rebooting");
+            DcsBios::EasyMode::reboot();
+        }
+    } else {
+        DcsBios::EasyMode::loop();
+    }
+}
+```
+
+`beginCalibration()` clears the learned state in RAM and starts learning from the first raw ADC sample. `serviceCalibration(Serial)` prints each calibrating input in sketch order as `CONTROL min|raw|max`, updates learned ranges, and writes EEPROM only when a learned range changes. Keep a delay in the calibration loop so EEPROM is not written excessively while controls are being moved.
+
+## Entering Calibration Mode
+
+### **It is important to do Calibration before use in DCS**.
+
+### **The sketch will not connect to DCS until all inputs have been calibrated by sweeping each input through it's full range.**
+
+If the Calibration Mode button is pressed 1 second after boot it will enter Calibration Mode.
+
+The example (`examples\61_Mosquito_Throttle_Quadrant\61_Mosquito_Throttle_Quadrant.ino`) enters calibration mode when the calibration button (in that example's case it is the Rocket Fire button on the Right Throttle lever) is pressed.
+
+
+## Exiting Calibration Mode
+
+**NOTE** Before Exiting the Calibration Mode, make sure that every input has been swept though its full Minimum to Maximum range. DCS Normal Mode will not start until every input has had this done. Failure to sweep the full physical range will not map properly to the DCS control.
+
+The example (`examples\61_Mosquito_Throttle_Quadrant\61_Mosquito_Throttle_Quadrant.ino`) enters calibration mode when the calibration button (in that example's case it is the Rocket Fire button on the Right Throttle lever) is held during boot. While calibration mode is running, releasing that button tells the sketch to leave calibration mode and restart in normal DCS-BIOS mode.
+
+The button is checked with a small debounce helper:
+
+```cpp
+bool buttonPressedDebounced(byte pin, bool level) {
+    bool i,j;
+    i = digitalRead(pin);
+    delay(25);
+    j = digitalRead(pin);
+    return (i == level && j == level);
+}
+```
+
+### Debouncing the Calibration Mode button:
+The helper reads the input twice with a short delay. The release only counts if both reads match the expected level, so contact bounce does not accidentally reboot the board:
+
+```cpp
+if (buttonPressedDebounced(CALIBRATION_MODE_BUTTON, HIGH)) {
+    Serial.println("Rebooting");
+    DcsBios::EasyMode::reboot();
+}
+```
+
+### Exiting Calibration Mode using a Watch Dog Timer:
+
+A watchdog timer is a clock that has an alarm (does an action) a set time unless it's reset. In Electrical Engineer, when a "watch dog" is reset it's referred to as "kicking the dog". On AVR boards such as the Nano, `DcsBios::EasyMode::reboot()` uses the Nano's watchdog timer to restart the board. By enabling the timer and spinning on a loop without "kicking" the watchdog, eventually the timeout will happen which, for the Nano, reboots the device after 15ms. 
+
+If the Calibration Mode button is not being pressed after 1 second it will continue into Normal DCS Mode. If it is pressed, it will once again start in Calibration Mode with all the inputs reset minimum and maximum levels set as "uncalibrated". The sketch will not connect to DCS until all inputs have been calibrated by sweeping each input through it's full range.
+
+This Watchdog timer is still enabled after reboot and will trigger again soon if not "kicked". Calling `DcsBios::EasyMode::reboot_disable()` near the start of `setup()` disables the watchdog since we don't need it for normal operation. On non-AVR boards, the EasyMode reboot helpers compile as fall through no-action code unless that target adds its own watchdog implementation.
+
+## Step 20: Build And Upload Your Own Sketch
 The simplest copy-paste pattern is:
 
 1. Paste the Bort snippet above `setup()`.
@@ -803,6 +930,62 @@ Important idea:
 Photo placeholder:
 
 - Add photo of a 28BYJ-48 turning a compass card or heading repeater.
+
+## Implemented Warbird Cockpit Devices
+
+The repository also includes larger, aircraft-specific examples for Spitfire and Mosquito cockpit hardware. These are useful when you want to see how the basic EasyMode device types combine into a complete panel or cockpit control.
+
+### Spitfire Output Devices
+
+`examples/5_Spitfire_Blind_Panel/5_Spitfire_Blind_Panel.ino` implements the main blind flying panel outputs:
+
+- Air Speed Indicator with a `Stepper_28BYJ48` over a 720 degree sweep.
+- Artificial Horizon bank and pitch with separate `Servo_SG90` outputs.
+- Rate of Climb Indicator with a manual `Stepper_Manual_28BYJ48`, calculated from altitude changes because DCS-BIOS does not provide a direct rate-of-climb telemetry value.
+- Three-needle Altimeter with one manual `Stepper_Manual_28BYJ48`, driven from the hundreds, thousands, and ten-thousands altitude exports.
+- Gyroscopic Directional Indicator with a `Stepper_28BYJ48`.
+- Side Slip and Turn Gauge with separate `Servo_SG90` outputs.
+
+`examples/51_Spitfire_Slip_Tilt_Gauges/51_Spitfire_Slip_Tilt_Gauges.ino` is the smaller Spitfire slip-and-turn output example. It implements only the Side Slip Gauge and Turn Gauge using two `Servo_SG90` outputs.
+
+`examples/52_Spitfire_Altimeter_Barometer/52_Spitfire_Altimeter_Barometer.ino` implements a Spitfire altimeter and barometer pair:
+
+- Altimeter needle motion with a `Stepper_28BYJ48`, including homing support.
+- Barometer scale motion with a generic `Servo`, including gear-reduction scaling for the barometer wheel.
+
+### Mosquito Output Devices
+
+`examples/6_Mosquito_Blind_Panel/6_Mosquito_Blind_Panel.ino` implements the Mosquito version of the blind flying panel outputs:
+
+- Air Speed Indicator with a `Stepper_28BYJ48` over a 720 degree sweep.
+- Artificial Horizon bank and pitch with separate `Servo_SG90` outputs.
+- Rate of Climb Indicator with a manual `Stepper_Manual_28BYJ48`, calculated from altitude changes.
+- Three-needle Altimeter with one manual `Stepper_Manual_28BYJ48`, driven from the altitude needle exports.
+- Gyroscopic Directional Indicator with a `Stepper_28BYJ48`.
+- Side Slip and Turn Gauge with separate `Servo_SG90` outputs.
+
+### Mosquito Input Devices
+
+`examples/7_Mosquito_Fuel_Panel/7_Mosquito_Fuel_Panel.ino` implements the Mosquito fuel panel inputs:
+
+- Tank pressurizing lever with `Switch2Pos`.
+- Port and starboard fuel cutout levers with `Switch2Pos`.
+- Port and starboard fuel cock selectors with `Switch3Pos`.
+- Periodic EasyMode refresh so DCS is corrected if the simulator missed the physical switch state.
+
+`examples/61_Mosquito_Throttle_Quadrant/61_Mosquito_Throttle_Quadrant.ino` implements the Mosquito throttle quadrant inputs:
+
+- Left and right throttle levers with calibrated `Potentiometer` inputs.
+- Left and right propeller levers with calibrated `Potentiometer` inputs.
+- Mixture lever with calibrated `AnalogMultiPos`.
+- Rocket firing and supercharger switches with `Switch2Pos`.
+- Boot-time calibration mode, EasyMode EEPROM calibration storage, and watchdog reboot back into normal mode.
+
+[IN DEVELOPMENT] `examples/62_Mosquito_Trim/62_Mosquito_Trim.ino` implements analog trim rocker inputs for the Mosquito trim panel:
+
+- Aileron, rudder, and elevator trim rockers using calibrated `AnalogSyncingRocker` inputs.
+- Hall-sensor calibration using the same EasyMode EEPROM service path as the throttle quadrant.
+- Placeholder trim gauge definitions are included because the current Mosquito DCS-BIOS definitions expose rocker state but not continuous trim feedback exports.
 
 ## Advanced Examples
 The following examples expand on the lessons learned in examples 0 through 7.
