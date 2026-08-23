@@ -26,9 +26,39 @@ This file is guidance for AI coding agents† such as OpenAI Codex when they wor
 - Example sketches under `examples/` are used as compile-test coverage.
 - Generated Arduino build output goes under `.arduino-build/` and should not be treated as source.
 
-## Development Expectations
+## Programming Style Expectations
 
 - Prefer root-cause fixes over local workarounds.
+- Avoid Helper Bloat. Prefer small code blocks be inserted when only used by a single caller.
+- Be mindful of stack depth bloat.
+- When using an architecture specific code block make an #if #else #end pre-processor block leveraging `#error`.
+
+```cpp
+#if defined(__AVR__)
+#include <avr/wdt.h>
+// AVR implementation
+#elif defined(ESP32)
+// ESP32 implementation
+#else
+#error Architecture Not Implemented. Write your port here.
+#endif
+```
+
+In some cases, not having it implemented and falling through is ok. In such cases change `#error` to a `#warning`
+
+```cpp
+void reboot() {
+#if defined(__AVR__)
+    wdt_enable(WDTO_15MS);
+    while (true) {}
+#else
+#warning EasyMode reboot is not implemented for this architecture.
+#endif
+}
+```
+
+## Development Expectations
+
 - Preserve existing sketch compatibility unless the user explicitly asks for an API break.
 - Design Easy Mode APIs for non-programmers building hardware panels. Keep programming details hidden inside the classes, prefer Arduino-familiar terms such as `HIGH`, `LOW`, pins, degrees, and RPM, and avoid requiring users to understand C++ enum/class syntax for normal sketch use.
 - Easy Mode APIs are up for grabs while in development. Prefer the clearest beginner-facing sketch syntax over preserving temporary constructor argument order, and treat compatibility as negotiable until an API has been released or documented as stable.
