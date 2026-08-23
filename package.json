@@ -4,6 +4,8 @@
   "scripts": {
     "release:zip": "node scripts/package-arduino-release.mjs",
     "release:zip:clean": "node scripts/package-arduino-release.mjs --clean",
-    "release:install": "node scripts/package-arduino-release.mjs --install"
+    "release:install": "node scripts/package-arduino-release.mjs --install",
+    "firmware:mosquito:nano": "node scripts/package-firmware-release.mjs",
+    "firmware:mosquito:nano:clean": "node scripts/package-firmware-release.mjs --clean"
   }
 }
