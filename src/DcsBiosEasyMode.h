@@ -3,10 +3,15 @@
 
 #include <Arduino.h>
 
+#if defined(__AVR__)
+#include <avr/wdt.h>
+#endif
+
 #include <AccelStepper.h>
 #include <DcsBios.h>
 
 #include "internal/DcsBiosEasyCommon.h"
+#include "internal/DcsBiosEasyEEPROM.h"
 #include "internal/DcsBiosEasyInputs.h"
 #include "internal/DcsBiosEasyServos.h"
 #include "internal/DcsBiosEasySteppers.h"
@@ -45,6 +50,47 @@ inline bool sendDcsBiosMessage(const char* msg, const char* arg) {
 
 inline void resetAllStates() {
     DcsBios::resetAllStates();
+}
+
+inline bool loadCalibration(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    return DcsBios::loadEasyModeCalibrationFromEEPROM(eepromAddress);
+}
+
+inline void beginCalibration() {
+    DcsBios::beginEasyModeCalibration();
+}
+
+inline bool updateCalibration() {
+    return DcsBios::updateEasyModeCalibration();
+}
+
+inline void saveCalibration(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    DcsBios::saveEasyModeCalibrationToEEPROM(eepromAddress);
+}
+
+inline bool saveCalibrationIfChanged(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    return DcsBios::saveEasyModeCalibrationToEEPROMIfChanged(eepromAddress);
+}
+
+inline bool serviceCalibration(Print& out, int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    return DcsBios::serviceEasyModeCalibration(out, eepromAddress);
+}
+
+inline bool calibrationIsValid() {
+    return DcsBios::easyModeCalibrationIsValid();
+}
+
+inline void reboot_disable() {
+#if defined(__AVR__)
+    wdt_disable();
+#endif
+}
+
+inline void reboot() {
+#if defined(__AVR__)
+    wdt_enable(WDTO_15MS);
+    while (true) {}
+#endif
 }
 
 // Only maintained-state inputs participate in periodic refreshes.

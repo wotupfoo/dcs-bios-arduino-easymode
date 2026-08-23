@@ -22,6 +22,7 @@ MatSwitch2Pos	KEYWORD1
 MatSwitch3Pos	KEYWORD1
 
 AnalogMultiPos	KEYWORD1
+AnalogSyncingRocker	KEYWORD1
 RotarySwitch	KEYWORD1
 Potentiometer	KEYWORD1
 RotaryEncoder	KEYWORD1
@@ -53,6 +54,24 @@ getRefreshInterval	KEYWORD2
 tryToSendDcsBiosMessage	KEYWORD2
 sendDcsBiosMessage	KEYWORD2
 resetAllStates	KEYWORD2
+loadCalibration	KEYWORD2
+beginCalibration	KEYWORD2
+updateCalibration	KEYWORD2
+saveCalibration	KEYWORD2
+saveCalibrationIfChanged	KEYWORD2
+serviceCalibration	KEYWORD2
+reboot	KEYWORD2
+reboot_disable	KEYWORD2
+calibrationIsValid	KEYWORD2
+calibrationMin	KEYWORD2
+calibrationMax	KEYWORD2
+setMin	KEYWORD2
+setMax	KEYWORD2
+getRawValue	KEYWORD2
+setFeedbackMin	KEYWORD2
+setFeedbackMax	KEYWORD2
+setDeadband	KEYWORD2
+setReverseDirection	KEYWORD2
 
 home	KEYWORD2
 homeDeg	KEYWORD2

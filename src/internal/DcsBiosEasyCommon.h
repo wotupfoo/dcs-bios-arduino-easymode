@@ -12,6 +12,9 @@ enum class EasyModeDir {
     CCW
 };
 
+static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 1024;
+static const unsigned int EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN = 64;
+
 class EasyModeRefreshableInputBase {
 private:
     bool refreshEnabled_ = false;
@@ -51,6 +54,84 @@ public:
         return firstRefreshableInput();
     }
 };
+
+class EasyModeCalibratableInputBase {
+private:
+    EasyModeCalibratableInputBase* nextCalibratableInput_ = nullptr;
+
+    static EasyModeCalibratableInputBase*& firstCalibratableInput() {
+        static EasyModeCalibratableInputBase* first = nullptr;
+        return first;
+    }
+
+protected:
+    EasyModeCalibratableInputBase() {
+        nextCalibratableInput_ = firstCalibratableInput();
+        firstCalibratableInput() = this;
+    }
+
+public:
+    EasyModeCalibratableInputBase* nextCalibratableInput() const {
+        return nextCalibratableInput_;
+    }
+
+    static EasyModeCalibratableInputBase* first() {
+        return firstCalibratableInput();
+    }
+
+    virtual const char* calibrationName() const = 0;
+    virtual unsigned int calibrationAdcSpan() const = 0;
+    virtual unsigned int calibrationMin() const = 0;
+    virtual unsigned int calibrationMax() const = 0;
+    virtual bool calibrationIsValid() const = 0;
+    virtual void clearCalibration() = 0;
+    virtual bool learnCalibrationSample() = 0;
+    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue, unsigned int adcSpan) = 0;
+    virtual void printCalibrationStatus(Print& out) const = 0;
+};
+
+inline unsigned int easyModeCalibrationNameHash(const char* name) {
+    unsigned long hash = 2166136261UL;
+    while (name != nullptr && *name != '\0') {
+        hash ^= (unsigned char)(*name++);
+        hash *= 16777619UL;
+    }
+    return (unsigned int)((hash >> 16) ^ (hash & 0xFFFFUL));
+}
+
+inline bool& easyModeCalibrationDirty() {
+    static bool dirty = false;
+    return dirty;
+}
+
+inline void beginEasyModeCalibration() {
+    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
+    while (input != nullptr) {
+        input->clearCalibration();
+        input = input->nextCalibratableInput();
+    }
+    easyModeCalibrationDirty() = true;
+}
+
+inline bool updateEasyModeCalibration() {
+    bool changed = false;
+    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
+    while (input != nullptr) {
+        if (input->learnCalibrationSample()) changed = true;
+        input = input->nextCalibratableInput();
+    }
+    if (changed) easyModeCalibrationDirty() = true;
+    return changed;
+}
+
+inline bool easyModeCalibrationIsValid() {
+    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
+    while (input != nullptr) {
+        if (!input->calibrationIsValid()) return false;
+        input = input->nextCalibratableInput();
+    }
+    return true;
+}
 
 inline unsigned long& easyModeRefreshIntervalMs() {
     static unsigned long intervalMs = 0;
