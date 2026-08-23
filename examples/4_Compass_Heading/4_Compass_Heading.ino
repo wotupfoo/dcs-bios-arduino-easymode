@@ -11,9 +11,9 @@
  * driver board setup, so the constructor can stay focused on the DCS-BIOS
  * source and the four motor pins.
  *
- * DcsBios::EasyMode::Stepper_28BYJ48 with wrapAround() wraps through
- * 360 degrees smoothly. This heading source is already angle-like, so setup()
- * sets inputMaxValue to 360.
+ * DcsBios::EasyMode::Stepper_28BYJ48_Continuous wraps through 360 degrees
+ * smoothly. This heading source is already angle-like, so setup() sets
+ * inputMaxValue to 360.
  * By default it wraps with modulus 360 and takes the shortest path, so
  * 355 degrees -> 1 degree moves forward to the 361-degree equivalent.
  *
@@ -23,9 +23,9 @@
  * typically use true.
  *
  * If you are driving a mechanism that should stay between 0 and 360 degrees
- * instead, leave out the compassCard.wrapAround() line in setup().
+ * instead, use DcsBios::EasyMode::Stepper_28BYJ48_Bounded.
  */
-DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
+DcsBios::EasyMode::Stepper_28BYJ48_Continuous compassCard(
     CommonData_HDG_DEG, // Telemetry source: heading in degrees
     8,                 // 28BYJ-48 / ULN2003 input pin 1
     9,                 // 28BYJ-48 / ULN2003 input pin 2
@@ -36,7 +36,6 @@ DcsBios::EasyMode::Stepper_28BYJ48 compassCard(
 );
 
 void setup() {
-    compassCard.wrapAround();               // Wrap through 360 degrees smoothly
     compassCard.setInputMaxValue(360);      // CommonData_HDG_DEG is already sent as 0..359 degrees
 
     // NOTE: Stepper homing is NOT automatic. To home on startup if you have a

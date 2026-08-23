@@ -154,8 +154,12 @@ using Servo_SG90 = EasyServo_SG90;
 using ServoOutput = DcsBios::ServoOutput;
 
 using Stepper = EasyStepper;
+using Stepper_Bounded = EasyStepper_Bounded;
+using Stepper_Continuous = EasyStepper_Continuous;
 using Stepper_Manual = EasyStepper_Manual<GenericStepperProfile>;
 using Stepper_28BYJ48 = EasyStepper_28BYJ48;
+using Stepper_28BYJ48_Bounded = EasyStepper_28BYJ48_Bounded;
+using Stepper_28BYJ48_Continuous = EasyStepper_28BYJ48_Continuous;
 using Stepper_Manual_28BYJ48 = EasyStepper_Manual<Stepper28Byj48Profile>;
 
 } // namespace EasyMode
