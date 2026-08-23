@@ -134,13 +134,13 @@ DcsBios::EasyMode::Potentiometer throttleControlR("THROTTLE_CONTROL_R",
                                         0,      // adc min
                                         1023,   // adc max
                                         3);     // adc hysterisis
-DcsBios::EasyMode::Potentiometer propControlL("THROTTLE_CONTROL_PROP_L",
+DcsBios::EasyMode::Potentiometer propControlL("PROP_CONTROL_L",
                                         PIN_THROTTLE_PROP_CONTROL_L,
                                         true,   // reverse
                                         0,      // adc min
                                         1023,   // adc max
                                         3);     // adc hysterisis
-DcsBios::EasyMode::Potentiometer propControlR("THROTTLE_CONTROL_PROP_R",
+DcsBios::EasyMode::Potentiometer propControlR("PROP_CONTROL_R",
                                         PIN_THROTTLE_PROP_CONTROL_R,
                                         false,  // reverse
                                         0,      // adc min
@@ -156,7 +156,7 @@ DcsBios::EasyMode::AnalogMultiPos mixture("MIXTURE",
 
 DcsBios::EasyMode::Switch2Pos rocketFiring("RKT_FIRING_SW",
                                         PIN_RKT_FIRING_SW,
-                                        true);  // reverse
+                                        false);  // reverse
 DcsBios::EasyMode::Switch2Pos superCharger("SUPERCHARGER",
                                         PIN_SUPERCHARGER,
                                         true);  // reverse
