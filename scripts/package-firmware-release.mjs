@@ -131,6 +131,7 @@ function writePackageReadme(packageDir, version) {
     'Firmware files:',
     '- hex/*.hex files are used for flashing.',
     '- elf/*.elf files are included for symbol/debug inspection.',
+    '- eep/*.eep files are included when Arduino emits EEPROM images.',
     ''
   ].join('\r\n'));
 }
@@ -151,6 +152,12 @@ function writeFlashScript(packageDir) {
     '',
     'if not exist "%HEX%" (',
     '    echo Firmware not found: "%HEX%"',
+    '    exit /b 1',
+    ')',
+    '',
+    'where avrdude.exe >nul 2>nul',
+    'if errorlevel 1 (',
+    '    echo avrdude.exe was not found in PATH.',
     '    exit /b 1',
     ')',
     '',
@@ -220,6 +227,3 @@ writeFlashScript(packageDir);
 createZip(archivePath, packageName, distDir);
 
 console.log(`Created ${path.relative(repoRoot, archivePath)}`);
-
-
-

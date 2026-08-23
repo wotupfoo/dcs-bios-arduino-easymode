@@ -1,0 +1,76 @@
+name: Package Mosquito Nano Firmware
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+jobs:
+  package-mosquito-nano-firmware:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Read library metadata
+        id: metadata
+        shell: pwsh
+        run: |
+          $properties = @{}
+          Get-Content library.properties | ForEach-Object {
+            if ($_ -match '^\s*#' -or $_ -notmatch '=') { return }
+            $key, $value = $_ -split '=', 2
+            $properties[$key.Trim()] = $value.Trim()
+          }
+
+          $version = $properties['version']
+          $archiveName = "DCS-BIOS-EasyMode-Mosquito-Nano-Firmware-$version.zip"
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "archive_name=$archiveName" >> $env:GITHUB_OUTPUT
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 18
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Configure Arduino CLI
+        shell: pwsh
+        run: |
+          $arduinoUser = (Join-Path $env:GITHUB_WORKSPACE 'arduino') -replace '\\', '/'
+          'directories:' | Set-Content -Path arduino-cli.yaml -Encoding ASCII
+          "  user: `"$arduinoUser`"" | Add-Content -Path arduino-cli.yaml -Encoding ASCII
+
+      - name: Install Arduino core and libraries
+        shell: pwsh
+        run: |
+          arduino-cli --config-file arduino-cli.yaml core update-index
+          arduino-cli --config-file arduino-cli.yaml core install arduino:avr
+          arduino-cli --config-file arduino-cli.yaml lib update-index
+          arduino-cli --config-file arduino-cli.yaml lib install DCS-BIOS
+          arduino-cli --config-file arduino-cli.yaml lib install AccelStepper
+          arduino-cli --config-file arduino-cli.yaml lib install Servo
+
+      - name: Create Mosquito Nano firmware package
+        run: npm run firmware:mosquito:nano
+
+      - name: Upload firmware zip as workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: DCS-BIOS-EasyMode-Mosquito-Nano-Firmware
+          path: dist/${{ steps.metadata.outputs.archive_name }}
+          if-no-files-found: error
+
+      - name: Attach firmware zip to GitHub release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ steps.metadata.outputs.archive_name }}
