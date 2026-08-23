@@ -2,7 +2,7 @@
 #include <DcsBiosEasyMode.h>
 
 /*
- * Blank starting point for building a DCS-BIOS Easy Mode sketch.
+ * Blank starting point for building a DCS-BIOS EasyMode sketch.
  *
  * Workflow:
  *
@@ -17,7 +17,7 @@
  * template for beginners.
  */
 
-// Paste copied DCS-BIOS Easy Mode objects here.
+// Paste copied DCS-BIOS EasyMode objects here.
 // Example:
 // DcsBios::EasyMode::Servo_SG90 altimeterNeedle(CommonData_ALT_MSL_FT_A, 5);
 

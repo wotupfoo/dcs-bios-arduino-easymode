@@ -20,7 +20,7 @@ This file is guidance for AI coding agents† such as OpenAI Codex when they wor
 
 ## Workspace Map
 
-- This repository is an Arduino library for DCS-BIOS Easy Mode.
+- This repository is an Arduino library for DCS-BIOS EasyMode.
 - Public include entry point: `src/DcsBiosEasyMode.h`.
 - Internal implementation headers live under `src/internal/`.
 - Example sketches under `examples/` are used as compile-test coverage.
@@ -60,8 +60,8 @@ void reboot() {
 ## Development Expectations
 
 - Preserve existing sketch compatibility unless the user explicitly asks for an API break.
-- Design Easy Mode APIs for non-programmers building hardware panels. Keep programming details hidden inside the classes, prefer Arduino-familiar terms such as `HIGH`, `LOW`, pins, degrees, and RPM, and avoid requiring users to understand C++ enum/class syntax for normal sketch use.
-- Easy Mode APIs are up for grabs while in development. Prefer the clearest beginner-facing sketch syntax over preserving temporary constructor argument order, and treat compatibility as negotiable until an API has been released or documented as stable.
+- Design EasyMode APIs for non-programmers building hardware panels. Keep programming details hidden inside the classes, prefer Arduino-familiar terms such as `HIGH`, `LOW`, pins, degrees, and RPM, and avoid requiring users to understand C++ enum/class syntax for normal sketch use.
+- EasyMode APIs are up for grabs while in development. Prefer the clearest beginner-facing sketch syntax over preserving temporary constructor argument order, and treat compatibility as negotiable until an API has been released or documented as stable.
 - Do not edit example sketches unless the task requires it.
 - For stepper changes, check both normal DCS-driven steppers and manual steppers when relevant.
 - For public API changes, update or compile at least one representative example.

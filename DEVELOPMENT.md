@@ -1,4 +1,4 @@
-# DCS-BIOS Easy Mode Development Notes
+# DCS-BIOS EasyMode Development Notes
 
 ## Arduino CLI Helper Files
 

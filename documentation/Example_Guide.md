@@ -1,4 +1,4 @@
-# DCS-BIOS Easy Mode Beginner Guide
+# DCS-BIOS EasyMode Beginner Guide
 
 ![](images/dcs-bios-icon.png)
 
@@ -54,10 +54,10 @@ Likewise, things that move in the simulator, like gauge needles, can be made int
 
 - **DCS: World** (Digital Combat Simulator by Eagle Dynamics) is the flight simulator.
 - **DCS-BIOS** ([DCS - Basic Input/Output System](https://en.wikipedia.org/wiki/BIOS)) is the bridge that exposes cockpit data and accepts cockpit commands.
-- **DCS-BIOS Easy Mode** makes the Arduino code much simpler and easier to copy, paste, and understand.
+- **DCS-BIOS EasyMode** makes the Arduino code much simpler and easier to copy, paste, and understand.
 - **Bort-EasyMode** is a Windows companion app and live reference tool that helps the hobbyist find the information needed to implement a particular simulated item, like a gauge (output) or switch (input), in an Arduino application ("sketch") that is built and uploaded to an Arduino development board.
 
-DCS-BIOS and this user-friendly version, **DCS-BIOS Easy Mode**, fuse the flight simulation hobby with the DIY electronics and Arduino software hobby to help create a [simulation cockpit](https://en.wikipedia.org/wiki/Simulation_cockpit).
+DCS-BIOS and this user-friendly version, **DCS-BIOS EasyMode**, fuse the flight simulation hobby with the DIY electronics and Arduino software hobby to help create a [simulation cockpit](https://en.wikipedia.org/wiki/Simulation_cockpit).
 
 # Two words appear a lot in Arduino projects:
 
@@ -115,15 +115,15 @@ Examples:
 
 **DCS-BIOS Skunkwork Releases:** `https://github.com/DCS-Skunkworks/dcs-bios/releases`
 
-## DCS-BIOS Easy Mode
+## DCS-BIOS EasyMode
 
-This project addresses a big problem with DCS-BIOS (Original and Skunkworks). They express the connections in terms of highly technical numbers instead of being in terms of what the physical control is doing. A Pitch Gauge for example, needs to be expressed in terms of how many degrees the needle needs to deflect up and down and that the zero position is in the middle. **DCS-BIOS Easy Mode** makes the setup parameters of these interfaces into the information that a real sim-pit builder thinks about.
+This project addresses a big problem with DCS-BIOS (Original and Skunkworks). They express the connections in terms of highly technical numbers instead of being in terms of what the physical control is doing. A Pitch Gauge for example, needs to be expressed in terms of how many degrees the needle needs to deflect up and down and that the zero position is in the middle. **DCS-BIOS EasyMode** makes the setup parameters of these interfaces into the information that a real sim-pit builder thinks about.
 
 **NOTE: This library sits on top of DCS-BIOS, it does not replace it.**
 
-The DCS-BIOS Easy Mode library used in this guide comes from:
+The DCS-BIOS EasyMode library used in this guide comes from:
 
-**DCS-BIOS Easy Mode Releases:** `https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases`
+**DCS-BIOS EasyMode Releases:** `https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases`
 
 Instead of thinking in low-level pulse widths or motor internals, the idea is to think in terms such as:
 
@@ -133,11 +133,11 @@ Instead of thinking in low-level pulse widths or motor internals, the idea is to
 - clockwise or counter-clockwise
 - zero at one end or zero in the middle
 
-### DCS-BIOS Easy Mode coding snippets vs DCS-BIOS coding snippets
+### DCS-BIOS EasyMode coding snippets vs DCS-BIOS coding snippets
 If you have used DCS-BIOS is the past you'll be familar with the input and output methods starting with:
 `DcsBios::` followed by an input like `DcsBios:Switch2Pos( )`
 
-Using *Dcs-Bios Easy Mode** is the exact same for all the inputs, it just adds a few new outputs (Steppers and Servos) and behind the scenes fixes some problems with DCS-BIOS.
+Using *Dcs-Bios EasyMode** is the exact same for all the inputs, it just adds a few new outputs (Steppers and Servos) and behind the scenes fixes some problems with DCS-BIOS.
 
 Where you are used to seeing `DcsBios::` you'll now use `DcsBios:EasyMode::`
 
@@ -153,7 +153,7 @@ So, if you have any existing code you can either leave it alone and mix `DcsBios
 
 ## Bort-EasyMode
 
-Bort-EasyMode is the Easy Mode version of Bort, the DCS-BIOS reference and code-snippet tool.
+Bort-EasyMode is the EasyMode version of Bort, the DCS-BIOS reference and code-snippet tool.
 
 You use Bort-EasyMode to:
 
@@ -166,12 +166,12 @@ You use Bort-EasyMode to:
 
 ## What You Need Installed
 
-For your first DCS-BIOS Easy Mode project, install these five things in this order:
+For your first DCS-BIOS EasyMode project, install these five things in this order:
 
 1. [DCS World](https://www.digitalcombatsimulator.com/en/downloads/world/)
 2. [Arduino IDE](https://www.arduino.cc/en/software/)
 3. [DCS-BIOS Skunkworks](https://github.com/DCS-Skunkworks/dcs-bios/releases)
-4. [DCS-BIOS Easy Mode Arduino library](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases)
+4. [DCS-BIOS EasyMode Arduino library](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases)
 5. [Bort-EasyMode](https://github.com/wotupfoo/Bort-EasyMode/releases)
 
 ## Suggested Beginner Workflow
@@ -182,7 +182,7 @@ If you are new, follow this order:
 2. Install DCS-BIOS from Skunkworks into Arduino IDE.
 3. Install Arduino IDE.
 4. Install DCS-BIOS Skunkworks so DCS can export telemetry.
-5. Install DCS-BIOS Easy Mode into Arduino IDE.
+5. Install DCS-BIOS EasyMode into Arduino IDE.
 6. Install Bort-EasyMode.
 7. Open `0_DefaultSerial`.
 8. Build and upload `0_DefaultSerial` once.
@@ -322,7 +322,7 @@ eg. for Arudino boards showing up as COM2, COM3, COM5, COM12, COM15
 
 For a beginner, the easiest mental model is:
 - one Ardiuno library (DCS-BIOS from Skunkworks) handles the communication from the board (typically over USB) to/from the DCS-BIOS plugin added to DCS World.
-- one Ardiuno library (DCS-BIOS Easy Mode) sits in front of the DCS-BIOS software running on the Arduino board. It makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS from Skunkworks lacks.
+- one Ardiuno library (DCS-BIOS EasyMode) sits in front of the DCS-BIOS software running on the Arduino board. It makes the Arduino environment more friendly and provides practical sim-pit examples. It also adds stepper motor support which DCS-BIOS from Skunkworks lacks.
 - the Arduino electronics board. eg. Arduino Mega2560, Arduino Nano, Arduino UNO, Arduino Due, Arduino Bluepill, Arduino ESP32
 - switches and knobs as well as moving items like Steppers and Servos built into mechanical components to emulate an aircraft cockpit control.
 
@@ -359,24 +359,24 @@ Installing the **DCS-BIOS** Arduino library:
 2. Choose `Sketch > Include Library > Add .ZIP Library...`.
 3. Add the DCS-BIOS Arduino library ZIP.
 
-## Step 5: Install DCS-BIOS Easy Mode Into Arduino IDE
+## Step 5: Install DCS-BIOS EasyMode Into Arduino IDE
 
-You also need the **DCS-BIOS Easy Mode** Arduino library available for use inside the Arduino IDE.
+You also need the **DCS-BIOS EasyMode** Arduino library available for use inside the Arduino IDE.
 
-Get the ZIP file from the [DCS-BIOS Easy Mode releases](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases).
+Get the ZIP file from the [DCS-BIOS EasyMode releases](https://github.com/wotupfoo/dcs-bios-arduino-easymode/releases).
 
-Installing the **DCS-BIOS Easy Mode** Arduino library:
+Installing the **DCS-BIOS EasyMode** Arduino library:
 1. Open Arduino IDE.
 2. Choose `Sketch > Include Library > Add .ZIP Library...`.
 3. Add the DCS-BIOS Easy-Mode Arduino library ZIP.
 
-After installation, Arduino IDE should be able to open the example sketches from the `File > Examples > DCS-BIOS Easy Mode >` menu.
+After installation, Arduino IDE should be able to open the example sketches from the `File > Examples > DCS-BIOS EasyMode >` menu.
 
 ![](images/Arduino/Arduino-Include-Library-med.png)
 
 ## Step 6: Install Bort-EasyMode
 
-Install the DCS-BIOS Easy Mode version of Bort from [Bort-EasyMode releases](https://github.com/wotupfoo/Bort-EasyMode/releases).
+Install the DCS-BIOS EasyMode version of Bort from [Bort-EasyMode releases](https://github.com/wotupfoo/Bort-EasyMode/releases).
 
 Then run Bort-EasyMode.
 
@@ -406,7 +406,7 @@ This is the recommended first file to open when building from a Bort-EasyMode sn
 It already contains:
 
 - the required `#define DCSBIOS_DEFAULT_SERIAL`
-- the correct Easy Mode include
+- the correct EasyMode include
 - `DcsBios::EasyMode::setup();`
 - `DcsBios::EasyMode::loop();`
 - comments showing where copied lines should be pasted
@@ -422,7 +422,7 @@ This proves that:
 - Arduino IDE is working.
 - The correct board is selected.
 - The correct COM port is selected.
-- The Easy Mode library is installed correctly.
+- The EasyMode library is installed correctly.
 
 It is better to find simple setup problems here than later in a more complicated sketch.
 
@@ -432,7 +432,7 @@ From this point on, the steps in this guide stay simple on purpose. There is a l
 
 Open `1_Altimeter` and look at the simplest complete gauge example in the journey.
 
-This is where the user first sees a working Easy Mode output object in a very small sketch.
+This is where the user first sees a working EasyMode output object in a very small sketch.
 
 ## Step 10: Open 2_Pitch
 
@@ -468,7 +468,7 @@ This is another full panel example that reinforces the same patterns in a differ
 
 Study `7_Mosquito_Fuel_Panel` next.
 
-This shows how maintained switches and input synchronization fit into the same Easy Mode journey.
+This shows how maintained switches and input synchronization fit into the same EasyMode journey.
 
 ## Step 16: Return To 0_DefaultSerial For Your Own Project
 
@@ -776,7 +776,7 @@ void loop() {
 }
 ```
 
-That is the basic pattern for most Easy Mode builds.
+That is the basic pattern for most EasyMode builds.
 ## What Each Example Is For
 
 The example sketches in this library are not just random demos. Each one is meant to answer a common beginner question.
@@ -1148,4 +1148,4 @@ An important part of that work was research. The AI was able to study the surrou
 
 That same collaboration also helped identify a broader design problem: DCS-BIOS and Bort were powerful tools, but they often assumed more software knowledge than many builders have or want to have. Many users are strong in aircraft systems, electronics, and physical fabrication, but may not be comfortable with programming language, software abstractions, or reading raw code. A major goal of this project was therefore to reduce that barrier and reshape the experience so it felt more welcoming to non-programmers.
 
-With that goal in mind, the AI helped reshape both the code and the user experience. It contributed to the design and implementation of DCS-BIOS Easy Mode, created example sketches based on real DCS World telemetry, modified Bort so its generated snippets were easier to understand and copy into Arduino IDE, and helped produce beginner-friendly instructions for installing and using the whole toolchain. The result is not only a set of software changes, but also a more accessible workflow for people who want to build virtual cockpit hardware without needing to think like professional software developers.
+With that goal in mind, the AI helped reshape both the code and the user experience. It contributed to the design and implementation of DCS-BIOS EasyMode, created example sketches based on real DCS World telemetry, modified Bort so its generated snippets were easier to understand and copy into Arduino IDE, and helped produce beginner-friendly instructions for installing and using the whole toolchain. The result is not only a set of software changes, but also a more accessible workflow for people who want to build virtual cockpit hardware without needing to think like professional software developers.
