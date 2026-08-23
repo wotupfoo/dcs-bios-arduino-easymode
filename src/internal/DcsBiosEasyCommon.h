@@ -25,10 +25,19 @@ private:
         return first;
     }
 
+    static EasyModeRefreshableInputBase*& lastRefreshableInput() {
+        static EasyModeRefreshableInputBase* last = nullptr;
+        return last;
+    }
+
 protected:
     EasyModeRefreshableInputBase() {
-        nextRefreshableInput_ = firstRefreshableInput();
-        firstRefreshableInput() = this;
+        if (firstRefreshableInput() == nullptr) {
+            firstRefreshableInput() = this;
+        } else {
+            lastRefreshableInput()->nextRefreshableInput_ = this;
+        }
+        lastRefreshableInput() = this;
     }
 
     virtual void resetForRefresh() = 0;
@@ -64,10 +73,19 @@ private:
         return first;
     }
 
+    static EasyModeCalibratableInputBase*& lastCalibratableInput() {
+        static EasyModeCalibratableInputBase* last = nullptr;
+        return last;
+    }
+
 protected:
     EasyModeCalibratableInputBase() {
-        nextCalibratableInput_ = firstCalibratableInput();
-        firstCalibratableInput() = this;
+        if (firstCalibratableInput() == nullptr) {
+            firstCalibratableInput() = this;
+        } else {
+            lastCalibratableInput()->nextCalibratableInput_ = this;
+        }
+        lastCalibratableInput() = this;
     }
 
 public:

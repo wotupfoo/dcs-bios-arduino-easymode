@@ -522,6 +522,9 @@ private:
         if (inputMax_ <= inputMin_) value = inputMin_;
         else if (value < inputMin_) value = inputMin_;
         else if (value > inputMax_) value = inputMax_;
+        // Remove end of range jittery output by checking against the Hysteresis distance
+        else if ((unsigned long)(value - inputMin_) <= rawHysteresis_) value = inputMin_;
+        else if ((unsigned long)(inputMax_ - value) <= rawHysteresis_) value = inputMax_;
 
         if (inputMax_ <= inputMin_) {
             state = 0;
@@ -545,8 +548,6 @@ private:
         if (!hasLastState_
         || ((lastState_ > state && (lastState_ - state > hysteresis)))
         || ((state > lastState_) && (state - lastState_ > hysteresis))
-        || ((state > (65535 - hysteresis) && state > lastState_))
-        || ((state < hysteresis && state < lastState_))
         ) {
             char buf[6];
             utoa(state, buf, 10);
