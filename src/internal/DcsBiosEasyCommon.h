@@ -12,8 +12,14 @@ enum class EasyModeDir {
     CCW
 };
 
-static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 1024;
-static const unsigned int EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN = 64;
+#if defined(__AVR__)
+static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 1024; // 10 bit
+#elif defined(ESP32)
+static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 4096; // 12 bit
+#else
+#error Implement the ADC span for the architecture
+#endif
+static const unsigned int EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN = EASYMODE_DEFAULT_ADC_SPAN >> 4; // 1/16th
 
 class EasyModeRefreshableInputBase {
 private:
@@ -98,13 +104,12 @@ public:
     }
 
     virtual const char* calibrationName() const = 0;
-    virtual unsigned int calibrationAdcSpan() const = 0;
     virtual unsigned int calibrationMin() const = 0;
     virtual unsigned int calibrationMax() const = 0;
     virtual bool calibrationIsValid() const = 0;
     virtual void clearCalibration() = 0;
     virtual bool learnCalibrationSample() = 0;
-    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue, unsigned int adcSpan) = 0;
+    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue) = 0;
     virtual void printCalibrationStatus(Print& out) const = 0;
 };
 

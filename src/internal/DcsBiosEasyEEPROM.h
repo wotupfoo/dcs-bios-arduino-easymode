@@ -10,7 +10,7 @@
 namespace DcsBios {
 
 static const unsigned int EASYMODE_EEPROM_MAGIC = 0xD5E1;
-static const unsigned char EASYMODE_EEPROM_VERSION = 1;
+static const unsigned char EASYMODE_EEPROM_VERSION = 2;
 static const int EASYMODE_EEPROM_DEFAULT_ADDR = 0;
 
 struct EasyModeEepromHeader {
@@ -21,7 +21,6 @@ struct EasyModeEepromHeader {
 
 struct EasyModeEepromCalibrationRecord {
     unsigned int id;
-    unsigned int adcSpan;
     unsigned int minValue;
     unsigned int maxValue;
     unsigned char flags;
@@ -32,8 +31,6 @@ inline unsigned char easyModeEepromRecordChecksum(const EasyModeEepromCalibratio
     unsigned char checksum = 0xA5;
     checksum ^= (unsigned char)(record.id & 0xFF);
     checksum ^= (unsigned char)(record.id >> 8);
-    checksum ^= (unsigned char)(record.adcSpan & 0xFF);
-    checksum ^= (unsigned char)(record.adcSpan >> 8);
     checksum ^= (unsigned char)(record.minValue & 0xFF);
     checksum ^= (unsigned char)(record.minValue >> 8);
     checksum ^= (unsigned char)(record.maxValue & 0xFF);
@@ -74,7 +71,7 @@ inline bool loadEasyModeCalibrationFromEEPROM(int address = EASYMODE_EEPROM_DEFA
         if (recordInput == nullptr) continue;
 
         if ((record.flags & 0x01) == 0) continue;
-        recordInput->applyCalibration(record.minValue, record.maxValue, record.adcSpan);
+        recordInput->applyCalibration(record.minValue, record.maxValue);
     }
 
     easyModeCalibrationDirty() = false;
@@ -100,7 +97,6 @@ inline void saveEasyModeCalibrationToEEPROM(int address = EASYMODE_EEPROM_DEFAUL
     while (input != nullptr) {
         EasyModeEepromCalibrationRecord record;
         record.id = easyModeCalibrationNameHash(input->calibrationName());
-        record.adcSpan = input->calibrationAdcSpan();
         record.minValue = input->calibrationMin();
         record.maxValue = input->calibrationMax();
         record.flags = input->calibrationIsValid() ? 0x01 : 0x00;

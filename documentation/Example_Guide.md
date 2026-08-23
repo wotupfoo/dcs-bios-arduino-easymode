@@ -633,12 +633,9 @@ The Arduino Nano ADC span is normally `1024`, which means `analogRead()` returns
 For an absolute DCS-BIOS analog command, use `Potentiometer`:
 
 ```cpp
-static const uint16_t ADC_SPAN = 1024;
-
 DcsBios::EasyMode::Potentiometer throttleControlL("THROTTLE_CONTROL_L",
                                         PIN_THROTTLE_CONTROL_L,
                                         true,     // reverse
-                                        ADC_SPAN,
                                         3);       // raw hysteresis, ADC counts
 ```
 
@@ -647,7 +644,6 @@ Constructor arguments:
 - control name: the DCS-BIOS control message, such as `"THROTTLE_CONTROL_L"`
 - pin: the Arduino analog input pin
 - reverse: `true` swaps the direction of the output
-- ADC span: the size of the raw ADC domain, normally `1024` on Nano
 - raw hysteresis: the amount the raw ADC input must move before EasyMode sends a new value
 
 `Potentiometer` still sends the normal DCS-BIOS analog output range, `0..65535`. Calibration maps the learned raw travel range to that output range. Without valid EEPROM calibration, an EasyMode calibration-aware sketch will not send analog output for that input.
@@ -658,13 +654,13 @@ For a discrete control read through an analog input, use `AnalogMultiPos`:
 DcsBios::EasyMode::AnalogMultiPos mixture("MIXTURE",
                                         PIN_MIXTURE,
                                         1,        // positions (0,1)
-                                        ADC_SPAN,
-                                        3);       // raw hysteresis, ADC counts
+                                        3,        // raw hysteresis, ADC counts
+                                        true);    // fast polling
 ```
 
-`AnalogMultiPos` maps the calibrated raw ADC range into selector states. With `numOfSteps` set to `1`, the control behaves like a two-state analog switch: below the midpoint sends `0`, above the midpoint sends `1`. The raw hysteresis acts like a Schmitt trigger around the boundary so sensor noise does not repeatedly flip the state.
+`AnalogMultiPos` maps the calibrated raw ADC range into selector states. With `numOfSteps` set to `1`, the control behaves like a two-state analog switch: below the midpoint sends `0`, above the midpoint sends `1`. The raw hysteresis acts like a Schmitt trigger around the boundary so sensor noise does not repeatedly flip the state. By default, `AnalogMultiPos` preserves the original DCS-BIOS 750 ms analog selector poll period. Pass `true` for the optional fast polling argument to poll every 50 ms, matching the digital input debounce timescale for controls such as a two-position mixture lever.
 
-The same EasyMode calibration storage is also used by `RotarySyncingPotentiometer` and `AnalogSyncingRocker`. Their constructors also take the ADC span instead of measured min/max values.
+The same EasyMode calibration storage is also used by `RotarySyncingPotentiometer` and `AnalogSyncingRocker`. Their constructors use the same architecture-selected ADC span.
 
 A sketch can keep the calibration-mode button decision locally and let EasyMode handle EEPROM storage. Set any ADC reference in `setup()` before calibration service or normal EasyMode polling starts:
 

@@ -299,9 +299,11 @@ private:
     bool hasCalibrationSample_ = true;
     bool calibrationValid_ = true;
     unsigned int hysteresis_;
+    bool fastPolling_;
     unsigned char lastState_ = 0;
     bool hasLastState_ = false;
     unsigned long periodMs_ = 750;
+    unsigned long fastPollPeriodMs_ = 50;
     unsigned long lastPollMs_ = 0;
 
     void resetState() {
@@ -311,7 +313,8 @@ private:
     void pollInput() {
         if (!calibrationValid_) return;
         unsigned long now = millis();
-        if (now > lastPollMs_ + periodMs_) {
+        unsigned long activePeriodMs = fastPolling_ ? fastPollPeriodMs_ : periodMs_;
+        if (now > lastPollMs_ + activePeriodMs) {
             unsigned int raw = getRawValue();
             unsigned char state = 0;
 
@@ -358,18 +361,19 @@ public:
         const char* msg,
         char pin,
         char numOfSteps,
-        unsigned int adcSpan = EASYMODE_DEFAULT_ADC_SPAN,
-        unsigned int hysteresis = defaultHysteresis
+        unsigned int hysteresis = defaultHysteresis,
+        bool fastPolling = false
     ) :
         PollingInput(pollIntervalMs),
         msg_(msg),
         pin_(pin),
         numOfSteps_(numOfSteps),
         inputMin_(0),
-        inputMax_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN - 1 : adcSpan - 1),
-        adcSpan_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN : adcSpan),
+        inputMax_(EASYMODE_DEFAULT_ADC_SPAN - 1),
+        adcSpan_(EASYMODE_DEFAULT_ADC_SPAN),
         minimumCalibrationSpan_(EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN),
-        hysteresis_(hysteresis)
+        hysteresis_(hysteresis),
+        fastPolling_(fastPolling)
     {
         pinMode(pin_, INPUT);
         (void)easyModeFirstPacketListener();
@@ -402,9 +406,6 @@ public:
         return msg_;
     }
 
-    virtual unsigned int calibrationAdcSpan() const override {
-        return adcSpan_;
-    }
 
     virtual unsigned int calibrationMin() const override {
         return inputMin_;
@@ -458,13 +459,11 @@ public:
         return changed;
     }
 
-    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue, unsigned int adcSpan) override {
-        if (adcSpan == 0) adcSpan = adcSpan_;
-        if (maxValue >= adcSpan) return false;
+    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue) override {
+        if (maxValue >= adcSpan_) return false;
         if (maxValue <= minValue) return false;
         if ((maxValue - minValue) < minimumCalibrationSpan_) return false;
 
-        adcSpan_ = adcSpan;
         inputMin_ = minValue;
         inputMax_ = maxValue;
         hasCalibrationSample_ = true;
@@ -563,7 +562,6 @@ public:
         const char* msg,
         char pin,
         bool reverse = false,
-        unsigned int adcSpan = EASYMODE_DEFAULT_ADC_SPAN,
         unsigned int rawHysteresis = defaultRawHysteresis
     ) :
         PollingInput(pollIntervalMs),
@@ -571,8 +569,8 @@ public:
         pin_(pin),
         reverse_(reverse),
         inputMin_(0),
-        inputMax_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN - 1 : adcSpan - 1),
-        adcSpan_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN : adcSpan),
+        inputMax_(EASYMODE_DEFAULT_ADC_SPAN - 1),
+        adcSpan_(EASYMODE_DEFAULT_ADC_SPAN),
         minimumCalibrationSpan_(EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN),
         rawHysteresis_(rawHysteresis)
     {
@@ -607,9 +605,6 @@ public:
         return msg_;
     }
 
-    virtual unsigned int calibrationAdcSpan() const override {
-        return adcSpan_;
-    }
 
     virtual unsigned int calibrationMin() const override {
         return inputMin_;
@@ -663,13 +658,11 @@ public:
         return changed;
     }
 
-    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue, unsigned int adcSpan) override {
-        if (adcSpan == 0) adcSpan = adcSpan_;
-        if (maxValue >= adcSpan) return false;
+    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue) override {
+        if (maxValue >= adcSpan_) return false;
         if (maxValue <= minValue) return false;
         if ((maxValue - minValue) < minimumCalibrationSpan_) return false;
 
-        adcSpan_ = adcSpan;
         inputMin_ = minValue;
         inputMax_ = maxValue;
         hasCalibrationSample_ = true;
@@ -867,16 +860,15 @@ public:
         unsigned int syncToAddress,
         unsigned int syncToMask,
         unsigned char syncToShift,
-        int (*mapperCallback)(unsigned int, unsigned int),
-        unsigned int adcSpan = EASYMODE_DEFAULT_ADC_SPAN
+        int (*mapperCallback)(unsigned int, unsigned int)
     ) :
         PollingInput(pollIntervalMs),
         Int16Buffer(syncToAddress),
         msg_(msg),
         pin_(pin),
         inputMin_(0),
-        inputMax_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN - 1 : adcSpan - 1),
-        adcSpan_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN : adcSpan),
+        inputMax_(EASYMODE_DEFAULT_ADC_SPAN - 1),
+        adcSpan_(EASYMODE_DEFAULT_ADC_SPAN),
         minimumCalibrationSpan_(EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN),
         mask_(syncToMask),
         shift_(syncToShift),
@@ -914,9 +906,6 @@ public:
         return msg_;
     }
 
-    virtual unsigned int calibrationAdcSpan() const override {
-        return adcSpan_;
-    }
 
     virtual unsigned int calibrationMin() const override {
         return inputMin_;
@@ -970,13 +959,11 @@ public:
         return changed;
     }
 
-    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue, unsigned int adcSpan) override {
-        if (adcSpan == 0) adcSpan = adcSpan_;
-        if (maxValue >= adcSpan) return false;
+    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue) override {
+        if (maxValue >= adcSpan_) return false;
         if (maxValue <= minValue) return false;
         if ((maxValue - minValue) < minimumCalibrationSpan_) return false;
 
-        adcSpan_ = adcSpan;
         inputMin_ = minValue;
         inputMax_ = maxValue;
         hasCalibrationSample_ = true;
@@ -1118,7 +1105,6 @@ public:
         unsigned char feedbackShift,
         unsigned int feedbackMin = 0,
         unsigned int feedbackMax = 65535,
-        unsigned int adcSpan = EASYMODE_DEFAULT_ADC_SPAN,
         unsigned int deadband = defaultDeadband,
         bool reverseDirection = false
     ) :
@@ -1129,8 +1115,8 @@ public:
         feedbackMin_(feedbackMin),
         feedbackMax_(feedbackMax),
         inputMin_(0),
-        inputMax_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN - 1 : adcSpan - 1),
-        adcSpan_(adcSpan == 0 ? EASYMODE_DEFAULT_ADC_SPAN : adcSpan),
+        inputMax_(EASYMODE_DEFAULT_ADC_SPAN - 1),
+        adcSpan_(EASYMODE_DEFAULT_ADC_SPAN),
         minimumCalibrationSpan_(EASYMODE_DEFAULT_MIN_CALIBRATION_SPAN),
         deadband_(deadband),
         reverseDirection_(reverseDirection),
@@ -1188,9 +1174,6 @@ public:
         return msg_;
     }
 
-    virtual unsigned int calibrationAdcSpan() const override {
-        return adcSpan_;
-    }
 
     virtual unsigned int calibrationMin() const override {
         return inputMin_;
@@ -1244,13 +1227,11 @@ public:
         return changed;
     }
 
-    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue, unsigned int adcSpan) override {
-        if (adcSpan == 0) adcSpan = adcSpan_;
-        if (maxValue >= adcSpan) return false;
+    virtual bool applyCalibration(unsigned int minValue, unsigned int maxValue) override {
+        if (maxValue >= adcSpan_) return false;
         if (maxValue <= minValue) return false;
         if ((maxValue - minValue) < minimumCalibrationSpan_) return false;
 
-        adcSpan_ = adcSpan;
         inputMin_ = minValue;
         inputMax_ = maxValue;
         hasCalibrationSample_ = true;
