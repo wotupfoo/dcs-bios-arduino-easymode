@@ -182,8 +182,10 @@ void loop() {
         // CALIBRATION MODE
         // ====================
 
+        /* Move all inputs through the full range of travel to find the 
+         * minimum and maximum values. */
+
         DcsBios::EasyMode::serviceCalibration(Serial);
-        delay(1000); // Wait 1 second before looking for new values again - no point thrashing the EEPROM
 
         /* If the rocket firing switch has been released (HIGH), 
          * reboot (using a watchdog timeout) into normal operation */
@@ -191,13 +193,18 @@ void loop() {
             Serial.println("Rebooting");
             DcsBios::EasyMode::reboot();
         }
+
+        /* Wait 1 second before looking for new limits of range again.
+         * There is little point to be saving the new values more 
+         * frequently than that. */
+        delay(1000); 
     }
     else
     {
         // ====================
         // NORMAL DCS BIOS MODE
         // ====================
-        
+
         DcsBios::EasyMode::loop();
     }
 }
