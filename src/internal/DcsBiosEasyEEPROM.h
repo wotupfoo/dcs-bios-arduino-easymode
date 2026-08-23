@@ -42,24 +42,6 @@ inline unsigned char easyModeEepromRecordChecksum(const EasyModeEepromCalibratio
     return checksum;
 }
 
-inline unsigned char easyModeCalibratableInputCount() {
-    unsigned char count = 0;
-    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
-    while (input != nullptr && count < 255) {
-        ++count;
-        input = input->nextCalibratableInput();
-    }
-    return count;
-}
-
-inline EasyModeCalibratableInputBase* findEasyModeCalibratableInput(unsigned int id) {
-    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
-    while (input != nullptr) {
-        if (easyModeCalibrationNameHash(input->calibrationName()) == id) return input;
-        input = input->nextCalibratableInput();
-    }
-    return nullptr;
-}
 
 inline bool loadEasyModeCalibrationFromEEPROM(int address = EASYMODE_EEPROM_DEFAULT_ADDR) {
     EasyModeEepromHeader header;
@@ -83,7 +65,12 @@ inline bool loadEasyModeCalibrationFromEEPROM(int address = EASYMODE_EEPROM_DEFA
         recordAddress += sizeof(EasyModeEepromCalibrationRecord);
 
         if (record.checksum != easyModeEepromRecordChecksum(record)) continue;
-        EasyModeCalibratableInputBase* recordInput = findEasyModeCalibratableInput(record.id);
+
+        EasyModeCalibratableInputBase* recordInput = EasyModeCalibratableInputBase::first();
+        while (recordInput != nullptr) {
+            if (easyModeCalibrationNameHash(recordInput->calibrationName()) == record.id) break;
+            recordInput = recordInput->nextCalibratableInput();
+        }
         if (recordInput == nullptr) continue;
 
         if ((record.flags & 0x01) == 0) continue;
@@ -98,11 +85,18 @@ inline void saveEasyModeCalibrationToEEPROM(int address = EASYMODE_EEPROM_DEFAUL
     EasyModeEepromHeader header;
     header.magic = EASYMODE_EEPROM_MAGIC;
     header.version = EASYMODE_EEPROM_VERSION;
-    header.count = easyModeCalibratableInputCount();
+    header.count = 0;
+
+    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
+    while (input != nullptr && header.count < 255) {
+        ++header.count;
+        input = input->nextCalibratableInput();
+    }
+
     EEPROM.put(address, header);
 
     int recordAddress = address + sizeof(EasyModeEepromHeader);
-    EasyModeCalibratableInputBase* input = EasyModeCalibratableInputBase::first();
+    input = EasyModeCalibratableInputBase::first();
     while (input != nullptr) {
         EasyModeEepromCalibrationRecord record;
         record.id = easyModeCalibrationNameHash(input->calibrationName());
