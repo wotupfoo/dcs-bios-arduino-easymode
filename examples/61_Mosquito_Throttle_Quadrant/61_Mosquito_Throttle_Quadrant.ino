@@ -39,6 +39,10 @@
 #define PIN_SUPERCHARGER                3
 #define PIN_RKT_FIRING_SW               4
 
+// Set the digital input to check on bootup to go into Calibration Mode
+//#define CALIBRATION_MODE_BUTTON       5    // Dedicated pin
+#define CALIBRATION_MODE_BUTTON         PIN_RKT_FIRING_SW // Use the Rocket Button
+
 /*
 // Set the Nano ADC to use the clean 3.3v as the reference before globals.
 // It has to be here in a global otherwise the other global won't have it
@@ -103,9 +107,8 @@ void resetBlock() {
     resetValues(eeprom.lh.mix);
 }
 
-bool doUpdateEEPROM;        // Update the EEPROM because values changed
+bool doUpdateEEPROM = false;        // Update the EEPROM because values changed
 void updateMinMax(LO_HI& lh,uint16_t raw) {
-    doUpdateEEPROM = false;
     if (raw < lh.l) {
         lh.l = raw;
         doUpdateEEPROM = true;
@@ -121,35 +124,42 @@ void updateMinMax(LO_HI& lh,uint16_t raw) {
 // DCS-BIOS Input Devices
 DcsBios::EasyMode::Potentiometer throttleControlL("THROTTLE_CONTROL_L",
                                         PIN_THROTTLE_CONTROL_L,
-                                        true,   //reverse
-                                        0,      //min
-                                        1023);  //max
+                                        true,   // reverse
+                                        0,      // adc min
+                                        1023,   // adc max
+                                        3);     // adc hysterisis
 DcsBios::EasyMode::Potentiometer throttleControlR("THROTTLE_CONTROL_R",
                                         PIN_THROTTLE_CONTROL_R,
-                                        false,  //reverse
-                                        0,      //min
-                                        1023);  //max
+                                        false,  // reverse
+                                        0,      // adc min
+                                        1023,   // adc max
+                                        3);     // adc hysterisis
 DcsBios::EasyMode::Potentiometer propControlL("THROTTLE_CONTROL_PROP_L",
                                         PIN_THROTTLE_PROP_CONTROL_L,
-                                        true,   //reverse
-                                        0,      //min
-                                        1023);  //max
+                                        true,   // reverse
+                                        0,      // adc min
+                                        1023,   // adc max
+                                        3);     // adc hysterisis
 DcsBios::EasyMode::Potentiometer propControlR("THROTTLE_CONTROL_PROP_R",
                                         PIN_THROTTLE_PROP_CONTROL_R,
-                                        false,  //reverse
-                                        0,      //min
-                                        1023);  //max
+                                        false,  // reverse
+                                        0,      // adc min
+                                        1023,   // adc max
+                                        3);     // adc hysterisis
 
 DcsBios::EasyMode::AnalogMultiPos mixture("MIXTURE",
                                         PIN_MIXTURE,
-                                        1);
+                                        1,      // positions (0,1)
+                                        0,      // adc min
+                                        1023,   // adc max
+                                        3);     // adc hysterisis
 
 DcsBios::EasyMode::Switch2Pos rocketFiring("RKT_FIRING_SW",
                                         PIN_RKT_FIRING_SW,
-                                        true);  //reverse
+                                        true);  // reverse
 DcsBios::EasyMode::Switch2Pos superCharger("SUPERCHARGER",
                                         PIN_SUPERCHARGER,
-                                        true);  //reverse
+                                        true);  // reverse
 
 // ======================================================================
 // Current ADC input minimum and maximum ranges
@@ -194,6 +204,7 @@ void reboot() {
 
 // A flag to run in Calibration Mode or Normal Mode
 bool calibrationMode;
+static char buf[150];   // Current string length is 140+1
 
 // ======================================================================
 // SETUP
@@ -201,38 +212,18 @@ bool calibrationMode;
 void setup() {
     // Disable the Watchdog Timer (used to reboot out of Calibration mode)
     wdt_disable();
+    Serial.begin(250000);
 
     pinMode(LED_BUILTIN, OUTPUT);   // Used to show operating mode
 
-        static char buf[100];
-        snprintf(buf,
-                sizeof(buf),
-                "Throttle %04u|%04u|%04u  %04u|%04u|%04u Prop %04u|%04u|%04u  %04u|%04u|%04u  Mix %04u|%04u|%04u BEFORE",
-                eeprom.lh.throttleL.l,   quadrant.throttleL, eeprom.lh.throttleL.h,
-                eeprom.lh.throttleR.l,   quadrant.throttleR, eeprom.lh.throttleR.h,
-                eeprom.lh.propL.l,       quadrant.propL,     eeprom.lh.propL.h,
-                eeprom.lh.propR.l,       quadrant.propR,     eeprom.lh.propR.h,
-                eeprom.lh.mix.l,         quadrant.mix,       eeprom.lh.mix.h
-        );
     // Get the Min and Max input values for each ADC from EEPROM storage
-        Serial.println("Reading EEPROM");
     EEPROM.get(EEPROM_ADDR, eeprom);    // .get method understands the data type size
-        snprintf(buf,
-                sizeof(buf),
-                "Throttle %04u|%04u|%04u  %04u|%04u|%04u Prop %04u|%04u|%04u  %04u|%04u|%04u  Mix %04u|%04u|%04u AFTER",
-                eeprom.lh.throttleL.l,   quadrant.throttleL, eeprom.lh.throttleL.h,
-                eeprom.lh.throttleR.l,   quadrant.throttleR, eeprom.lh.throttleR.h,
-                eeprom.lh.propL.l,       quadrant.propL,     eeprom.lh.propL.h,
-                eeprom.lh.propR.l,       quadrant.propR,     eeprom.lh.propR.h,
-                eeprom.lh.mix.l,         quadrant.mix,       eeprom.lh.mix.h
-        );
+
     // Populate the values if they don't exist in the EEPROM
     if(eeprom.magic != EEPROM_MAGIC || eeprom.version != EEPROM_VERSION) {
-        Serial.println("EEPROM MISMATCH");
         resetBlock();
         eeprom.magic = EEPROM_MAGIC;
         eeprom.version = EEPROM_VERSION;
-        Serial.println("Writing EEPROM");
         EEPROM.put(EEPROM_ADDR, eeprom);
     }
     // Load EEPROM values into the Input Readers
@@ -241,17 +232,17 @@ void setup() {
     // Wait a second before looking at the fire button to see
     // if we are to go into Calibration Mode (vs Normal DCS-BIOS mode)
     delay(1000);    
-    pinMode(PIN_RKT_FIRING_SW, INPUT_PULLUP);
+    pinMode(CALIBRATION_MODE_BUTTON, INPUT_PULLUP);
+
     // If the Rocket Firing button is pressed during bootup go into
     // Calibration Mode to set the ranges of each analog input
     // Particularly important for Hall Effect sensors since they are 
     // no where near the full 0.0...3.3v analog range ([0..1023])
-    calibrationMode = digitalRead(PIN_RKT_FIRING_SW) == LOW;
+    calibrationMode = digitalRead(CALIBRATION_MODE_BUTTON) == LOW;
 
     if(calibrationMode) {
         // CALIBRATION MODE
         digitalWrite(LED_BUILTIN, HIGH);
-        Serial.begin(250000);
 
         Serial.println("Resetting EEPROM to defaults");
         eeprom.magic = EEPROM_MAGIC;
@@ -267,13 +258,15 @@ void setup() {
         digitalWrite(LED_BUILTIN, LOW);
         DcsBios::EasyMode::setup();
 
-        // Send the state of the hardware every second
-        DcsBios::EasyMode::refreshInterval(1000);
+        // Update and Send the state of the hardware every 5 seconds
+        // Changes to outputs will be sent immediately
+        DcsBios::EasyMode::refreshInterval(5000);
+/*
         throttleControlL.refresh(true);
         throttleControlR.refresh(true);
         propControlL.refresh(true);
         propControlR.refresh(true);
-
+*/
         mixture.refresh(true);
 
         rocketFiring.refresh(true);
@@ -287,18 +280,29 @@ void setup() {
 void loop() {
     if(calibrationMode)
     {
+        // ====================
         // CALIBRATION MODE
+        // ====================
+
+        // Process the analog stuff
         quadrant.throttleL = throttleControlL.getRawValue();
         quadrant.throttleR = throttleControlR.getRawValue();
         quadrant.propL = propControlL.getRawValue();
         quadrant.propR = propControlR.getRawValue();
         quadrant.mix = mixture.getRawValue();
 
+        // Process the digital stuff
+        uint16_t mix_span = eeprom.lh.mix.h - eeprom.lh.mix.l;
+        uint16_t mix_mid = eeprom.lh.mix.l + mix_span/2;
+        quadrant.mixb = quadrant.mix > mix_mid;
+
+        quadrant.rocket_fire = digitalRead(PIN_RKT_FIRING_SW) == LOW;
+        quadrant.supercharger = digitalRead(PIN_SUPERCHARGER) == LOW;
+
         // Print what we have before changing it so that there is an output of the EEPROM state
-        static char buf[100];
         snprintf(buf,
                 sizeof(buf),
-                "Throttle %04u|%04u|%04u  %04u|%04u|%04u Prop %04u|%04u|%04u  %04u|%04u|%04u  Mix %04u|%04u|%04u %d RocketFiring %d SuperCharger %d Update %d",
+                "Throttle %04u|%04u|%04u  %04u|%04u|%04u  Prop %04u|%04u|%04u  %04u|%04u|%04u  Mix %04u|%04u|%04u %d  RocketFiring %d  SuperCharger %d  Update %d",
                 eeprom.lh.throttleL.l,   quadrant.throttleL, eeprom.lh.throttleL.h,
                 eeprom.lh.throttleR.l,   quadrant.throttleR, eeprom.lh.throttleR.h,
                 eeprom.lh.propL.l,       quadrant.propL,     eeprom.lh.propL.h,
@@ -321,29 +325,27 @@ void loop() {
         // Push the updated EEPROM Min/Max values out to the Input Readers
         applyCalibration();
 
-        // Process the digital stuff
-        quadrant.mixb = (bool)map(quadrant.mix, eeprom.lh.mix.l, eeprom.lh.mix.h, 0, 1 );
-        quadrant.rocket_fire = digitalRead(PIN_RKT_FIRING_SW) == LOW;
-        quadrant.supercharger = digitalRead(PIN_SUPERCHARGER) == LOW;
-
         // Decide to stop and/or write the updated value to EEPROM
         if(doUpdateEEPROM) {
             eeprom.magic = EEPROM_MAGIC;
             eeprom.version = EEPROM_VERSION;
             Serial.println("Writing EEPROM");
             EEPROM.put(EEPROM_ADDR, eeprom);
+            doUpdateEEPROM = false;
         }
         delay(1000); // Wait 1 second before looking for new values again - no point thrashing the EEPROM
 
         // If the rocket firing switch has been released (HIGH), reboot (using a watchdog timeout) into normal operation
-        if(buttonPressedDebounced(PIN_RKT_FIRING_SW, HIGH)) {
+        if(buttonPressedDebounced(CALIBRATION_MODE_BUTTON, HIGH)) {
             Serial.println("Rebooting");
             reboot();
         }
     }
     else
     {
+        // ====================
         // NORMAL DCS BIOS MODE
+        // ====================
         DcsBios::EasyMode::loop();
     }
 }

@@ -286,7 +286,7 @@ public:
 
 using EasyModeSwitchMultiPos = EasyModeSwitchMultiPosT<>;
 
-template <unsigned long pollIntervalMs = POLL_EVERY_TIME>
+template <unsigned long pollIntervalMs = POLL_EVERY_TIME, unsigned int defaultHysteresis = 2>
 class EasyModeAnalogMultiPosT : PollingInput, public ResettableInput {
 private:
     const char* msg_;
@@ -294,24 +294,11 @@ private:
     unsigned char numOfSteps_;
     unsigned int inputMin_;
     unsigned int inputMax_;
+    unsigned int hysteresis_;
     unsigned char lastState_ = 0;
     bool hasLastState_ = false;
     unsigned long periodMs_ = 750;
     unsigned long lastPollMs_ = 0;
-
-    bool initialSyncDone_ = false;
-
-    unsigned char readState() const {
-        unsigned int raw = getRawValue();
-
-        if (inputMax_ <= inputMin_ || raw <= inputMin_) return 0;
-        if (raw >= inputMax_) return numOfSteps_;
-
-        unsigned long span = (unsigned long)(inputMax_ - inputMin_) + 1UL;
-        unsigned long mapped = ((unsigned long)(raw - inputMin_) * ((unsigned long)numOfSteps_ + 1UL)) / span;
-        if (mapped > numOfSteps_) mapped = numOfSteps_;
-        return (unsigned char)mapped;
-    }
 
     void resetState() {
         hasLastState_ = false;
@@ -319,28 +306,46 @@ private:
 
     void pollInput() {
         unsigned long now = millis();
-        if (initialSyncDone_ && now <= lastPollMs_ + periodMs_) return;
+        if (now > lastPollMs_ + periodMs_) {
+            unsigned int raw = getRawValue();
+            unsigned char state = 0;
 
-        unsigned char state = readState();
+            if (inputMax_ <= inputMin_ || raw <= inputMin_) {
+                state = 0;
+            } else if (raw >= inputMax_) {
+                state = numOfSteps_;
+            } else {
+                unsigned long span = (unsigned long)(inputMax_ - inputMin_) + 1UL;
+                unsigned long mapped = ((unsigned long)(raw - inputMin_) * ((unsigned long)numOfSteps_ + 1UL)) / span;
+                if (mapped > numOfSteps_) mapped = numOfSteps_;
+                state = (unsigned char)mapped;
 
-        if (!initialSyncDone_ && !easyModeFirstPacketListener().hasSeenPacket()) {
-            lastState_ = state;
-            hasLastState_ = true;
+                if (hasLastState_ && state != lastState_ && hysteresis_ > 0 && numOfSteps_ > 0) {
+                    unsigned long divisor = (unsigned long)numOfSteps_ + 1UL;
+                    if (state > lastState_ && lastState_ < numOfSteps_) {
+                        unsigned long boundary = (unsigned long)inputMin_ + ((((unsigned long)lastState_ + 1UL) * span) + divisor - 1UL) / divisor;
+                        unsigned long threshold = boundary + (unsigned long)hysteresis_;
+                        if (threshold > inputMax_) threshold = inputMax_;
+                        if ((unsigned long)raw < threshold) state = lastState_;
+                    } else if (state < lastState_ && lastState_ > 0) {
+                        unsigned long boundary = (unsigned long)inputMin_ + (((unsigned long)lastState_ * span) + divisor - 1UL) / divisor;
+                        unsigned long threshold = (boundary > (unsigned long)hysteresis_) ? boundary - (unsigned long)hysteresis_ : 0UL;
+                        if (threshold < inputMin_) threshold = inputMin_;
+                        if ((unsigned long)raw > threshold) state = lastState_;
+                    }
+                }
+            }
+
             lastPollMs_ = now;
-            return;
-        }
-
-        if (!initialSyncDone_ || !hasLastState_ || state != lastState_) {
-            char cstr[5];
-            itoa(state, cstr, 10);
-            if (tryToSendDcsBiosMessage(msg_, cstr)) {
-                lastState_ = state;
-                hasLastState_ = true;
-                initialSyncDone_ = true;
+            if (!hasLastState_ || state != lastState_) {
+                char cstr[5];
+                itoa(state, cstr, 10);
+                if (tryToSendDcsBiosMessage(msg_, cstr)) {
+                    lastState_ = state;
+                    hasLastState_ = true;
+                }
             }
         }
-
-        lastPollMs_ = now;
     }
 
 public:
@@ -349,14 +354,16 @@ public:
         char pin,
         char numOfSteps,
         unsigned int inputMin = 0,
-        unsigned int inputMax = 1023
+        unsigned int inputMax = 1023,
+        unsigned int hysteresis = defaultHysteresis
     ) :
         PollingInput(pollIntervalMs),
         msg_(msg),
         pin_(pin),
         numOfSteps_(numOfSteps),
         inputMin_(inputMin),
-        inputMax_(inputMax)
+        inputMax_(inputMax),
+        hysteresis_(hysteresis)
     {
         pinMode(pin_, INPUT);
         (void)easyModeFirstPacketListener();
@@ -389,7 +396,7 @@ public:
 
 using EasyModeAnalogMultiPos = EasyModeAnalogMultiPosT<>;
 
-template <unsigned long pollIntervalMs = 5, unsigned int hysteresis = 128, unsigned int ewmaDivisor = 5>
+template <unsigned long pollIntervalMs = 5, unsigned int defaultRawHysteresis = 2, unsigned int ewmaDivisor = 5>
 class EasyModePotentiometerT : PollingInput, public ResettableInput {
 private:
     const char* msg_;
@@ -397,72 +404,56 @@ private:
     bool reverse_;
     unsigned int inputMin_;
     unsigned int inputMax_;
+    unsigned int rawHysteresis_;
     unsigned int lastState_ = 0;
-    unsigned int filteredState_ = 0;
+    float accumulator_ = 0.0f;
     bool hasLastState_ = false;
-    bool filterInitialized_ = false;
-    bool initialSyncDone_ = false;
-
-    unsigned int mapRawToState(unsigned int raw) const {
-        if (inputMax_ <= inputMin_) return 0;
-
-        if (raw <= inputMin_) {
-            return reverse_ ? 65535U : 0U;
-        }
-
-        if (raw >= inputMax_) {
-            return reverse_ ? 0U : 65535U;
-        }
-
-        unsigned long mapped = ((unsigned long)(raw - inputMin_) * 65535UL) / (unsigned long)(inputMax_ - inputMin_);
-        if (reverse_) mapped = 65535UL - mapped;
-        return (unsigned int)mapped;
-    }
-
-    unsigned int readState() {
-        unsigned int state = mapRawToState(getRawValue());
-
-        if (state == 0U || state == 65535U || !filterInitialized_ || ewmaDivisor <= 1) {
-            filteredState_ = state;
-            filterInitialized_ = true;
-            return filteredState_;
-        }
-
-        filteredState_ = (unsigned int)((((unsigned long)filteredState_ * (ewmaDivisor - 1)) + state) / ewmaDivisor);
-        return filteredState_;
-    }
-
-    bool shouldSendState(unsigned int state) const {
-        if (!hasLastState_) return true;
-        if (state == 0U || state == 65535U) return state != lastState_;
-        return abs((long)state - (long)lastState_) >= (long)hysteresis;
-    }
-
     void resetState() {
         hasLastState_ = false;
     }
 
     void resetCalibrationMapping() {
-        filterInitialized_ = false;
         resetState();
     }
 
     void pollInput() {
-        unsigned int state = readState();
+        unsigned int state;
+        unsigned int value = getRawValue();
 
-        if (!initialSyncDone_ && !easyModeFirstPacketListener().hasSeenPacket()) {
-            lastState_ = state;
-            hasLastState_ = true;
-            return;
+        if (inputMax_ <= inputMin_) value = inputMin_;
+        else if (value < inputMin_) value = inputMin_;
+        else if (value > inputMax_) value = inputMax_;
+
+        if (inputMax_ <= inputMin_) {
+            state = 0;
+        } else if (reverse_) {
+            state = map(value, inputMin_, inputMax_, 65535, 0);
+        } else {
+            state = map(value, inputMin_, inputMax_, 0, 65535);
         }
 
-        if (!initialSyncDone_ || shouldSendState(state)) {
-            char buf[7];
+        accumulator_ += ((float)state - accumulator_) / (float)ewmaDivisor;
+        state = (unsigned int)accumulator_;
+
+        unsigned int hysteresis = rawHysteresis_;
+        if (inputMax_ > inputMin_) {
+            unsigned long mappedHysteresis = ((unsigned long)rawHysteresis_ * 65535UL) / (unsigned long)(inputMax_ - inputMin_);
+            if (rawHysteresis_ > 0 && mappedHysteresis == 0) mappedHysteresis = 1;
+            if (mappedHysteresis > 65535UL) mappedHysteresis = 65535UL;
+            hysteresis = (unsigned int)mappedHysteresis;
+        }
+
+        if (!hasLastState_
+        || ((lastState_ > state && (lastState_ - state > hysteresis)))
+        || ((state > lastState_) && (state - lastState_ > hysteresis))
+        || ((state > (65535 - hysteresis) && state > lastState_))
+        || ((state < hysteresis && state < lastState_))
+        ) {
+            char buf[6];
             utoa(state, buf, 10);
             if (tryToSendDcsBiosMessage(msg_, buf)) {
                 lastState_ = state;
                 hasLastState_ = true;
-                initialSyncDone_ = true;
             }
         }
     }
@@ -473,14 +464,16 @@ public:
         char pin,
         bool reverse = false,
         unsigned int inputMin = 0,
-        unsigned int inputMax = 1023
+        unsigned int inputMax = 1023,
+        unsigned int rawHysteresis = defaultRawHysteresis
     ) :
         PollingInput(pollIntervalMs),
         msg_(msg),
         pin_(pin),
         reverse_(reverse),
         inputMin_(inputMin),
-        inputMax_(inputMax)
+        inputMax_(inputMax),
+        rawHysteresis_(rawHysteresis)
     {
         pinMode(pin_, INPUT);
         (void)easyModeFirstPacketListener();
@@ -743,6 +736,188 @@ public:
 
 using EasyModeRotarySyncingPotentiometer = EasyModeRotarySyncingPotentiometerT<>;
 using EasyModeInvertedRotarySyncingPotentiometer = EasyModeRotarySyncingPotentiometerT<POLL_EVERY_TIME, true>;
+
+template <unsigned long pollIntervalMs = 5, unsigned int defaultDeadband = 512, unsigned long commandIntervalMs = 100>
+class EasyModeAnalogSyncingRockerT : PollingInput, Int16Buffer, public ResettableInput {
+private:
+    const char* msg_;
+    char pin_;
+    unsigned int feedbackMin_;
+    unsigned int feedbackMax_;
+    unsigned int inputMin_;
+    unsigned int inputMax_;
+    unsigned int deadband_;
+    bool reverseDirection_;
+
+    unsigned int targetState_ = 0;
+    bool hasTargetState_ = false;
+    unsigned int feedbackState_ = 0;
+    bool hasFeedbackState_ = false;
+
+    unsigned int mask_;
+    unsigned char shift_;
+    unsigned char lastCommandState_ = 1;
+    bool hasLastCommandState_ = false;
+    unsigned long lastPollTime_ = 0;
+    unsigned long lastSendTime_ = 0;
+
+    unsigned int mapRawToFeedbackState(unsigned int raw) const {
+        if (inputMax_ <= inputMin_) return feedbackMin_;
+        if (raw <= inputMin_) return feedbackMin_;
+        if (raw >= inputMax_) return feedbackMax_;
+
+        unsigned long inputSpan = (unsigned long)(inputMax_ - inputMin_);
+        unsigned long feedbackSpan = (feedbackMax_ >= feedbackMin_) ?
+            (unsigned long)(feedbackMax_ - feedbackMin_) :
+            (unsigned long)(feedbackMin_ - feedbackMax_);
+        unsigned long offset = ((unsigned long)(raw - inputMin_) * feedbackSpan) / inputSpan;
+
+        if (feedbackMax_ >= feedbackMin_) return feedbackMin_ + offset;
+        return feedbackMin_ - offset;
+    }
+
+    unsigned int readTargetState() const {
+        return mapRawToFeedbackState(getRawValue());
+    }
+
+    void updateTargetState(unsigned long now) {
+        if (pollIntervalMs != POLL_EVERY_TIME && (unsigned long)(now - lastPollTime_) < pollIntervalMs) return;
+
+        targetState_ = readTargetState();
+        hasTargetState_ = true;
+        lastPollTime_ = now;
+    }
+
+    unsigned char commandForDelta(long delta) const {
+        if (delta > (long)deadband_) return reverseDirection_ ? 0 : 2;
+        if (delta < -(long)deadband_) return reverseDirection_ ? 2 : 0;
+        return 1;
+    }
+
+    void resetState() {
+        hasLastCommandState_ = false;
+    }
+
+    void resetTargetMapping() {
+        hasTargetState_ = false;
+        resetState();
+    }
+
+    void pollInput() {
+        updateTargetState(millis());
+    }
+
+    bool updateFeedbackState() {
+        if (!this->hasUpdatedData()) return hasFeedbackState_;
+
+        feedbackState_ = getData();
+        hasFeedbackState_ = true;
+        return true;
+    }
+
+    const char* rockerStateArg(unsigned char state) const {
+        if (state == 0) return "0";
+        if (state == 2) return "2";
+        return "1";
+    }
+
+public:
+    EasyModeAnalogSyncingRockerT(
+        const char* msg,
+        char pin,
+        unsigned int feedbackAddress,
+        unsigned int feedbackMask,
+        unsigned char feedbackShift,
+        unsigned int feedbackMin = 0,
+        unsigned int feedbackMax = 65535,
+        unsigned int inputMin = 0,
+        unsigned int inputMax = 1023,
+        unsigned int deadband = defaultDeadband,
+        bool reverseDirection = false
+    ) :
+        PollingInput(pollIntervalMs),
+        Int16Buffer(feedbackAddress),
+        msg_(msg),
+        pin_(pin),
+        feedbackMin_(feedbackMin),
+        feedbackMax_(feedbackMax),
+        inputMin_(inputMin),
+        inputMax_(inputMax),
+        deadband_(deadband),
+        reverseDirection_(reverseDirection),
+        mask_(feedbackMask),
+        shift_(feedbackShift),
+        lastSendTime_(millis())
+    {
+        pinMode(pin_, INPUT);
+        (void)easyModeFirstPacketListener();
+    }
+
+    void SetControl(const char* msg) {
+        msg_ = msg;
+    }
+
+    void setMin(unsigned int value) {
+        inputMin_ = value;
+        resetTargetMapping();
+    }
+
+    void setMax(unsigned int value) {
+        inputMax_ = value;
+        resetTargetMapping();
+    }
+
+    void setFeedbackMin(unsigned int value) {
+        feedbackMin_ = value;
+        resetTargetMapping();
+    }
+
+    void setFeedbackMax(unsigned int value) {
+        feedbackMax_ = value;
+        resetTargetMapping();
+    }
+
+    void setDeadband(unsigned int value) {
+        deadband_ = value;
+        resetState();
+    }
+
+    void setReverseDirection(bool value) {
+        reverseDirection_ = value;
+        resetState();
+    }
+
+    unsigned int getRawValue() const {
+        analogRead(pin_);
+        return analogRead(pin_);
+    }
+
+    void resetThisState() {
+        this->resetState();
+    }
+
+    unsigned int getData() {
+        return ((this->Int16Buffer::getData()) & mask_) >> shift_;
+    }
+
+    virtual void loop() {
+        unsigned long now = millis();
+        updateTargetState(now);
+        if (!hasTargetState_ || !updateFeedbackState()) return;
+
+        unsigned char desiredState = commandForDelta((long)targetState_ - (long)feedbackState_);
+        if (hasLastCommandState_ && desiredState == lastCommandState_) return;
+        if ((unsigned long)(now - lastSendTime_) < commandIntervalMs) return;
+
+        if (tryToSendDcsBiosMessage(msg_, rockerStateArg(desiredState))) {
+            lastCommandState_ = desiredState;
+            hasLastCommandState_ = true;
+            lastSendTime_ = now;
+        }
+    }
+};
+
+using EasyModeAnalogSyncingRocker = EasyModeAnalogSyncingRockerT<>;
 
 } // namespace DcsBios
 

@@ -56,9 +56,9 @@ using MatActionButtonToggle = DcsBios::MatActionButtonToggle;
 using MatActionButtonSet = DcsBios::MatActionButtonSet;
 using DualModeButton = DcsBios::DualModeButton;
 
-using Switch2Pos = EasyModeRefreshableInputT<EasyModeSwitch2Pos>;
-using Switch3Pos = EasyModeRefreshableInputT<EasyModeSwitch3Pos>;
-using SwitchMultiPos = EasyModeRefreshableInputT<EasyModeSwitchMultiPos>;
+using Switch2Pos = EasyModeRefreshableInputT<DcsBios::Switch2Pos>;
+using Switch3Pos = EasyModeRefreshableInputT<DcsBios::Switch3Pos>;
+using SwitchMultiPos = EasyModeRefreshableInputT<DcsBios::SwitchMultiPos>;
 using SwitchWithCover2Pos = EasyModeRefreshableInputT<DcsBios::SwitchWithCover2Pos>;
 #if defined(USE_MATRIX_SWITCHES) || defined(DCSBIOS_USE_MATRIX_SWITCHES)
 using Matrix2Pos = EasyModeRefreshableInputT<DcsBios::Matrix2Pos>;
@@ -68,7 +68,8 @@ using MatSwitch3Pos = EasyModeRefreshableInputT<DcsBios::MatSwitch3Pos>;
 #endif
 
 using AnalogMultiPos = EasyModeRefreshableInputT<EasyModeAnalogMultiPos>;
-using RotarySwitch = EasyModeRefreshableInputT<EasyModeRotarySwitch<>>;
+using AnalogSyncingRocker = EasyModeRefreshableInputT<EasyModeAnalogSyncingRocker>;
+using RotarySwitch = EasyModeRefreshableInputT<DcsBios::RotarySwitch>;
 using Potentiometer = EasyModeRefreshableInputT<EasyModePotentiometer>;
 using RotaryEncoder = DcsBios::RotaryEncoder;
 using RotaryAcceleratedEncoder = DcsBios::RotaryAcceleratedEncoder;
