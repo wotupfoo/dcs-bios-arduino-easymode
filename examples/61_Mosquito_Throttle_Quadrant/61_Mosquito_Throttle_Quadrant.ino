@@ -122,10 +122,8 @@ void setup() {
     pinMode(LED_BUILTIN, OUTPUT);   // Used to show operating mode
 
 #if defined(ARDUINO_AVR_NANO)
-    /* Set the Nano ADC to use the clean 3.3v as the reference before globals.
-    It has to be here in a global otherwise the other global won't have it
-    configured before adcRead() is called in the class constructor.
-    */
+    // Optionally set the Nano ADC to use a clean external reference before
+    // calibration service or normal EasyMode polling reads analog inputs.
     // analogReference(EXTERNAL);
 #endif
 
@@ -154,13 +152,16 @@ void setup() {
         DcsBios::EasyMode::setup();
 
         // DCS can get out of sync with inputs because on game load they can be
-        // in any direction. Until DCS gets a message saying what the value is,
+        // in any position. Until DCS gets a message saying what the value is,
         // it can be mismatched. Therefore, you need to send out the physical 
         // state occassionally to get DCS in sync. 
         // DCS-BIOS EasyMode adds this refresh capability.
         // This is only a refresh interval, when input changes it is immediately
         // sent. So refresh can be many seconds, just not too long that
         // they are wrong for a long time when the game loads into a cockpit.
+        // It could go out as much as every second and the work it creates would
+        // likely have little impact on the game performance. But there is no 
+        // need do "as little as possible; as much as needed". Thus, 5 seconds.
         
         // Send the state of the hardware every 5 seconds
         DcsBios::EasyMode::refreshInterval(5000);
