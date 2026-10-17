@@ -14,15 +14,15 @@
  *                           TX1 --|    ...    |-- VIN
  *                           RX0 --|    ...    |-- GND
  *                           RST --|    ISP    |-- RST
- *                           GND --|           |-- +5V
- *         PIN_FLAPS_DOWN      2 --|           |-- A7
+ * --------GND               GND --|           |-- +5V
+ *   L     PIN_FLAPS_LOCK      2 --|           |-- A7
  *         PIN_FLAPS_UP        3 --|           |-- A6 
- *         PIN_FLAPS_LOCK      4 --|   NANO    |-- A5 
- *         PIN_GEAR_DOWN       5 --|           |-- A4 
- *         PIN_GEAR_UP         6 --|           |-- A3
- *         PIN_GEAR_LOCK       7 --|           |-- A2
- *         PIN_BOMB_DOWN       8 --|           |-- A1
- *         PIN_BOMB_UP         9 --|           |-- A0 
+ *   O     PIN_GEAR_LOCK       4 --|   NANO    |-- A5 
+ *         PIN_GEAR_UP         5 --|           |-- A4 
+ *   O     PIN_BOMB_UP         6 --|           |-- A3
+ *         PIN_BOMB_DOWN       7 --|           |-- A2
+ *   M     PIN_GEAR_DOWN       8 --|           |-- A1
+ * ------- PIN_FLAPS_DOWN      9 --|           |-- A0 
  *                            10 --|           |-- REF┐ See NOTE 1
  *                            11 --|  +-----+  |-- 3V3┘ 3.3v as ADC REF (Optional)
  *                            12 --|  | USB |  |-- 13
@@ -34,17 +34,16 @@
  * 
  */
 
-// Digital inputs
-#define PIN_FLAPS_DOWN          2
+// Digital inputs (ACTIVE LOW)
+#define PIN_FLAPS_LOCK          2
 #define PIN_FLAPS_UP            3
-#define PIN_FLAPS_LOCK          4
+#define PIN_GEAR_LOCK           4
+#define PIN_GEAR_UP             5
+#define PIN_BOMB_UP             6
+#define PIN_BOMB_DOWN           7
+#define PIN_GEAR_DOWN           8
+#define PIN_FLAPS_DOWN          9
 
-#define PIN_GEAR_DOWN           5
-#define PIN_GEAR_UP             6
-#define PIN_GEAR_LOCK           7
-
-#define PIN_BOMB_DOWN           8
-#define PIN_BOMB_UP             9
 
 #else
 #error "Unsupported board - Please use an Arduino Nano or implement your own"
@@ -59,15 +58,14 @@
 DcsBios::EasyMode::ActionButton BombBayUp(
     "CHASSIS_LEVER",
     "INC",
-    PIN_BOMB_UP,
-
-};
+    PIN_BOMB_UP
+);
 
 DcsBios::EasyMode::ActionButton BombBayDown(
     "CHASSIS_LEVER",
     "DEC",
     PIN_BOMB_DOWN
-};
+);
 
 // ======================================================================
 // Landing Gear ("Chassis")
@@ -75,12 +73,12 @@ DcsBios::EasyMode::ActionButton LandingGearUp(
     "CHASSIS_LEVER",        // DCS-BIOS Control
     "INC",                  // Message Argument
     PIN_GEAR_UP             // Arduino pin connected to the switch
-};
+);
 DcsBios::EasyMode::ActionButton LandingGearDown(
     "CHASSIS_LEVER",        // DCS-BIOS Control
     "DEC",                  // Message Argument
     PIN_GEAR_DOWN           // Arduino pin connected to the switch
-};
+);
 
 DcsBios::EasyMode::Switch2Pos LandingGearGate(
     "CHASSIS_GATE",         // DCS-BIOS Control
@@ -93,12 +91,12 @@ DcsBios::EasyMode::ActionButton FlapsUp(
     "FLAPS_LVR",            // DCS-BIOS Control
     "INC",                  // Message Argument
     PIN_FLAPS_UP            // Arduino pin connected to the switch
-};
+);
 DcsBios::EasyMode::ActionButton FlapsDown(
     "FLAPS_LVR",            // DCS-BIOS Control
     "DEC",                  // Message Argument
     PIN_FLAPS_DOWN          // Arduino pin connected to the switch
-};
+);
 
 DcsBios::EasyMode::Switch2Pos FlapsGate(
     "FLAPS_GATE",           // DCS-BIOS Control
