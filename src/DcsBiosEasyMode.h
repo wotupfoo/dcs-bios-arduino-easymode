@@ -1,10 +1,13 @@
-#ifndef __DCSBIOS_EASY_MODE_H
+﻿#ifndef __DCSBIOS_EASY_MODE_H
 #define __DCSBIOS_EASY_MODE_H
 
 #include <Arduino.h>
 
-#if defined(__AVR__)
+// Watchdog Timer/Reboot mechanism for each architecture
+#if defined(__AVR__)                        // nano, mega etc
 #include <avr/wdt.h>
+#elif defined(ARDUINO_GENERIC_STM32F103C)   // Bluepill STM32F10C
+#include <libmaple/iwdg.h>
 #endif
 
 #include <AccelStepper.h>
@@ -66,20 +69,38 @@ inline bool calibrationIsValid() {
     return DcsBios::easyModeCalibrationIsValid();
 }
 
+// Architecture check
+#if defined(__AVR__)
+// AVR chips
+#elif defined(ARDUINO_GENERIC_STM32F103C)
+// STM32 chips
+#else
+#error "Watchdog Timer not implemented for this architeture"
+#endif
+
 // ==============================
 // Reboot helpers
-inline void reboot_disable() {
+inline void reboot_setup() {
+    // There is a 1 second delay at boot to check for calibration mode.
+    // Make it 4 seconds so the dcs-bios::loop() can reset it.
 #if defined(__AVR__)
-    wdt_disable();
+    wdt_enable(WDTO_4S);
+#elif defined(ARDUINO_GENERIC_STM32F103C)
+    // For STM32, once started, the independent watchdog cannot be turned off.
+    iwdg_init(IWDG_PRE_8, 20000); // 40kHz->5kHz->20,000 count = 4 seconds
 #endif
 }
 
+inline void watchdog_refresh() {
+#if defined(__AVR__)
+    wdt_reset();
+#elif defined(ARDUINO_GENERIC_STM32F103C)
+    iwdg_feed(void);
+#endif
+}
 inline void reboot() {
     Serial.println("Rebooting");
-#if defined(__AVR__)
-    wdt_enable(WDTO_15MS);
     while (true) {}
-#endif
 }
 
 // ==============================
@@ -93,6 +114,7 @@ inline void setupCalibration() {
 // ==============================
 // called in sketch setup() in Normal Mode
 inline void setup(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    reboot_setup();
     DcsBios::EasyMode::loadCalibration(eepromAddress);
     DcsBios::setup();
 }
@@ -100,12 +122,14 @@ inline void setup(int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
 // ==============================
 // Called by sketch in loop() in Calibration Mode
 inline bool loopCalibration(Print& out, int eepromAddress = DcsBios::EASYMODE_EEPROM_DEFAULT_ADDR) {
+    watchdog_refresh();
     return DcsBios::serviceEasyModeCalibration(out, eepromAddress);
 }
 
 // ==============================
 // called in sketch loop() in Normal Mode
 inline void loop() {
+    watchdog_refresh();
     DcsBios::serviceEasyModeRefreshes();
     DcsBios::loop();
 }
@@ -142,6 +166,8 @@ using RotarySyncingPotentiometer = EasyModeRefreshableInputT<EasyModeRotarySynci
 using InvertedRotarySyncingPotentiometer = EasyModeRefreshableInputT<EasyModeInvertedRotarySyncingPotentiometer>;
 using BcdWheel = EasyModeRefreshableInputT<DcsBios::BcdWheel>;
 using RadioPreset = EasyModeRefreshableInputT<DcsBios::RadioPreset>;
+
+using SyncingSwitch3Pos = EasyModeSyncingSwitch3Pos;
 
 using IntegerBuffer = DcsBios::IntegerBuffer;
 template <unsigned int LENGTH>

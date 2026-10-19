@@ -1,4 +1,4 @@
-#define DCSBIOS_DEFAULT_SERIAL
+﻿#define DCSBIOS_DEFAULT_SERIAL
 #include <DcsBiosEasyMode.h>
 
 /*
@@ -23,8 +23,8 @@
  *         PIN_BOMB_DOWN       7 --|           |-- A2
  *   M     PIN_GEAR_DOWN       8 --|           |-- A1
  * ------- PIN_FLAPS_DOWN      9 --|           |-- A0 
- *                            10 --|           |-- REF┐ See NOTE 1
- *                            11 --|  +-----+  |-- 3V3┘ 3.3v as ADC REF (Optional)
+ *                            10 --|           |-- REFâ” See NOTE 1
+ *                            11 --|  +-----+  |-- 3V3â”˜ 3.3v as ADC REF (Optional)
  *                            12 --|  | USB |  |-- 13
  *                                 +--+_____+--+
  * NOTE 1 - Strap REF to 3v3 if your adc inputs are 3.3v (eg some Hall Sensors are 3.3v). 
@@ -35,8 +35,8 @@
  */
 
 // Digital inputs (ACTIVE LOW)
-#define PIN_FLAPS_LOCK          2
-#define PIN_FLAPS_UP            3
+#define PIN_FLAPS_LOCK          2 // INT0
+#define PIN_FLAPS_UP            3 // INT1
 #define PIN_GEAR_LOCK           4
 #define PIN_GEAR_UP             5
 #define PIN_BOMB_UP             6
@@ -44,6 +44,14 @@
 #define PIN_GEAR_DOWN           8
 #define PIN_FLAPS_DOWN          9
 
+// Solenoids to hold the lever at UP or DOWN
+// It is assumed that there is a spring to pull the lever back to MID when off
+#define PIN_FLAPS_UP_HOLD       14 // A0
+#define PIN_FLAPS_DOWN_HOLD     15 // A1
+#define PIN_GEAR_UP_HOLD        16 // A2
+#define PIN_GEAR_DOWN_HOLD      17 // A3
+#define PIN_BOMB_UP_HOLD        18 // A4/SDA
+#define PIN_BOMB_DOWN_HOLD      19 // A5/SCL
 
 #else
 #error "Unsupported board - Please use an Arduino Nano or implement your own"
@@ -53,54 +61,52 @@
 // ======================================================================
 // DCS-BIOS Input Devices
 
-// ======================================================================
-// Bomb Bay
-DcsBios::EasyMode::ActionButton BombBayUp(
-    "CHASSIS_LEVER",
-    "INC",
-    PIN_BOMB_UP
-);
-
-DcsBios::EasyMode::ActionButton BombBayDown(
-    "CHASSIS_LEVER",
-    "DEC",
-    PIN_BOMB_DOWN
-);
-
-// ======================================================================
-// Landing Gear ("Chassis")
-DcsBios::EasyMode::ActionButton LandingGearUp(
-    "CHASSIS_LEVER",        // DCS-BIOS Control
-    "INC",                  // Message Argument
-    PIN_GEAR_UP             // Arduino pin connected to the switch
-);
-DcsBios::EasyMode::ActionButton LandingGearDown(
-    "CHASSIS_LEVER",        // DCS-BIOS Control
-    "DEC",                  // Message Argument
-    PIN_GEAR_DOWN           // Arduino pin connected to the switch
-);
-
 DcsBios::EasyMode::Switch2Pos LandingGearGate(
     "CHASSIS_GATE",         // DCS-BIOS Control
-    PIN_GEAR_LOCK           // Arduino pin connected to the switch
-);
-
-// ======================================================================
-// Flaps
-DcsBios::EasyMode::ActionButton FlapsUp(
-    "FLAPS_LVR",            // DCS-BIOS Control
-    "INC",                  // Message Argument
-    PIN_FLAPS_UP            // Arduino pin connected to the switch
-);
-DcsBios::EasyMode::ActionButton FlapsDown(
-    "FLAPS_LVR",            // DCS-BIOS Control
-    "DEC",                  // Message Argument
-    PIN_FLAPS_DOWN          // Arduino pin connected to the switch
+    PIN_GEAR_LOCK,          // Arduino pin connected to the switch
+    true                    // Reverse
 );
 
 DcsBios::EasyMode::Switch2Pos FlapsGate(
     "FLAPS_GATE",           // DCS-BIOS Control
-    PIN_FLAPS_LOCK          // Arduino pin connected to the switch
+    PIN_FLAPS_LOCK,         // Arduino pin connected to the switch
+    true                    // Reverse
+);
+
+// ======================================================================
+// HELPER ROUTINES
+// ======================================================================
+
+// This class will handle all the state chanages from UP, MID, DOWN
+// while coordinating with the changes DCS may make to them too
+DcsBios::EasyMode::SyncingSwitch3Pos bomb(
+    PIN_BOMB_UP,                // UP detection pin
+    PIN_BOMB_DOWN,              // DOWN detection pin
+    "BOMB_LEVER",               // DCS Command
+    Mosquito_BOMB_DOORS_LVR,    // DCS Output Name
+    PIN_BOMB_UP_HOLD,           // UP solenoid pin
+    PIN_BOMB_DOWN_HOLD          // DOWN solenoid pin
+    //,LOW                      // Uncomment if solenoids are active LOW
+);
+
+DcsBios::EasyMode::SyncingSwitch3Pos gear(
+    PIN_GEAR_UP,                // UP detection pin
+    PIN_GEAR_DOWN,              // DOWN detection pin
+    "CHASSIS_LEVER",            // DCS Command
+    Mosquito_CHASSIS_LVR,       // DCS Output Name
+    PIN_GEAR_UP_HOLD,           // UP solenoid pin
+    PIN_GEAR_DOWN_HOLD          // DOWN solenoid pin
+    //,LOW                      // Uncomment if solenoids are active LOW
+);
+
+DcsBios::EasyMode::SyncingSwitch3Pos flaps(
+    PIN_FLAPS_UP,               // UP detection pin
+    PIN_FLAPS_DOWN,             // DOWN detection pin
+    "FLAPS_LEVER",              // DCS Command 
+    Mosquito_FLAPS_LVR,         // DCS Output Name
+    PIN_GEAR_UP_HOLD,           // UP solenoid pin
+    PIN_GEAR_DOWN_HOLD          // DOWN solenoid pin
+    //,LOW                      // Uncomment if solenoids are active LOW
 );
 
 // ======================================================================
@@ -122,8 +128,16 @@ void setup() {
         * likely have little impact on the game performance. But there is no 
         * need do "as little as possible; as much as needed". Thus, 5 seconds. */
     
-    // Send the state of the hardware every 5 seconds
-    //DcsBios::EasyMode::refreshInterval(5000);
+    // Send the state of the stateful hardware every 5 seconds
+    DcsBios::EasyMode::refreshInterval(5000);
+    LandingGearGate.refresh(true);
+    FlapsGate.refresh(true);
+
+    bomb.begin();
+    gear.begin();
+    flaps.begin();
+
+    Serial.println("Starting DCS-BIOS");
 }
 
 // ======================================================================
@@ -135,4 +149,9 @@ void loop() {
     // ====================
 
     DcsBios::EasyMode::loop();
+    DcsBios::EasyMode::watchdog_refresh();
+
+    bomb.update();
+    gear.update();
+    flaps.update();
 }

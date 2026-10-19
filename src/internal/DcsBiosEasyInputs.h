@@ -1,4 +1,4 @@
-#ifndef __DCSBIOS_EASY_INPUTS_H
+﻿#ifndef __DCSBIOS_EASY_INPUTS_H
 #define __DCSBIOS_EASY_INPUTS_H
 
 #ifndef __DCSBIOS_EASY_MODE_H
@@ -1274,6 +1274,156 @@ public:
 };
 
 using EasyModeAnalogSyncingRocker = EasyModeAnalogSyncingRockerT<>;
+
+class EasyModeSyncingSwitch3Pos : Int16Buffer {
+public:
+    EasyModeSyncingSwitch3Pos(
+        byte upPin,
+        byte downPin,
+        const char *command,
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift)
+        : Int16Buffer(address),
+          _upPin(upPin),
+          _downPin(downPin),
+          _command(command),
+          _mask(mask),
+          _shift(shift) {}
+
+    EasyModeSyncingSwitch3Pos(
+        byte upPin,
+        byte downPin,
+        const char *command,
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        byte holdUpPin,
+        byte holdDownPin,
+        byte holdActiveLevel = HIGH)
+        : EasyModeSyncingSwitch3Pos(upPin, downPin, command, address, mask, shift) {
+        _holdUpPin = holdUpPin;
+        _holdDownPin = holdDownPin;
+        _holdActiveLevel = holdActiveLevel;
+        _hasHoldOutputs = true;
+    }
+
+    // Registered listeners must remain at their original addresses.
+    EasyModeSyncingSwitch3Pos(const EasyModeSyncingSwitch3Pos&) = delete;
+    EasyModeSyncingSwitch3Pos& operator=(const EasyModeSyncingSwitch3Pos&) = delete;
+
+    void loop() override {
+        if (hasUpdatedData()) {
+            _dcsState = (Int16Buffer::getData() & _mask) >> _shift;
+            _hasDcsState = true;
+            updateHoldOutputs();
+        }
+    }
+
+    void begin() {
+        _begun = false;
+        if (_hasHoldOutputs) {
+            // Set inactive levels before enabling the output drivers.
+            byte inactive = _holdActiveLevel == HIGH ? LOW : HIGH;
+            digitalWrite(_holdUpPin, inactive);
+            digitalWrite(_holdDownPin, inactive);
+            pinMode(_holdUpPin, OUTPUT);
+            pinMode(_holdDownPin, OUTPUT);
+        }
+        pinMode(_upPin, INPUT_PULLUP);
+        pinMode(_downPin, INPUT_PULLUP);
+
+        _candidate = readPosition();
+        _position = _candidate;
+        _candidateTime = millis();
+        _begun = true;
+        // Wait for the physical position to pass debounce before holding.
+        _holdPositionValid = false;
+    }
+
+    void update() {
+        uint8_t raw = readPosition();
+
+        // Nonblocking debounce
+        if (raw != _candidate) {
+            _candidate = raw;
+            _candidateTime = millis();
+        }
+
+        if (millis() - _candidateTime < 25)
+            return;
+
+        _holdPositionValid = true;
+        if (_position != _candidate) {
+            _position = _candidate;
+            updateHoldOutputs();
+        }
+        else {
+            updateHoldOutputs();
+            return;
+        }
+
+        // Compare physical position against DCS
+        uint8_t dcs = _dcsState;
+
+        if (_position > dcs) {
+            Serial.print(_command);
+            Serial.println(" INC");
+        }
+        else if (_position < dcs) {
+            Serial.print(_command);
+            Serial.println(" DEC");
+        }
+    }
+
+    uint8_t position() const {
+        return _position;
+    }
+
+private:
+    byte _upPin;
+    byte _downPin;
+    unsigned int _dcsState = 1;
+    const char *_command;
+    unsigned int _mask;
+    unsigned char _shift;
+    bool _hasDcsState = false;
+    bool _hasHoldOutputs = false;
+    bool _begun = false;
+    bool _holdPositionValid = false;
+    byte _holdUpPin = 0;
+    byte _holdDownPin = 0;
+    byte _holdActiveLevel = HIGH;
+
+    void updateHoldOutputs() {
+        if (!_hasHoldOutputs || !_begun) return;
+
+        bool valid = _hasDcsState && _holdPositionValid;
+        bool holdUp = valid && _position == 2 && _dcsState == 2;
+        bool holdDown = valid && _position == 0 && _dcsState == 0;
+        byte inactive = _holdActiveLevel == HIGH ? LOW : HIGH;
+
+        // Release inactive ends before energizing the selected end.
+        if (!holdUp) digitalWrite(_holdUpPin, inactive);
+        if (!holdDown) digitalWrite(_holdDownPin, inactive);
+        if (holdUp) digitalWrite(_holdUpPin, _holdActiveLevel);
+        if (holdDown) digitalWrite(_holdDownPin, _holdActiveLevel);
+    }
+
+    uint8_t _position = 1;
+    uint8_t _candidate = 1;
+    unsigned long _candidateTime = 0;
+
+    uint8_t readPosition() {
+        if (digitalRead(_upPin) == LOW)
+            return 2;
+
+        if (digitalRead(_downPin) == LOW)
+            return 0;
+
+        return 1;
+    }
+};
 
 } // namespace DcsBios
 
