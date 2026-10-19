@@ -14,6 +14,7 @@ DualModeButton	KEYWORD1
 
 Switch2Pos	KEYWORD1
 Switch3Pos	KEYWORD1
+SyncingSwitch3Pos	KEYWORD1
 SwitchMultiPos	KEYWORD1
 SwitchWithCover2Pos	KEYWORD1
 Matrix2Pos	KEYWORD1
@@ -49,6 +50,9 @@ Stepper_28BYJ48	KEYWORD1
 Stepper_Manual_28BYJ48	KEYWORD1
 
 # Functions / methods
+begin	KEYWORD2
+update	KEYWORD2
+position	KEYWORD2
 refreshInterval	KEYWORD2
 getRefreshInterval	KEYWORD2
 tryToSendDcsBiosMessage	KEYWORD2

@@ -1,3 +1,13 @@
+10/18/2026
+Adding motorized switch/levers via `DcsBios::EasyMode::SyncingSwitch3Pos`
+This can be a switch/lever that is manually moved back to match DCS
+or via a spring pulling back to the default middle state ("MID") and
+solenoids holding a switch as "UP" or "DOWN".
+e.g. Hydrolic levers that return to middle after hitting end stops
+     - Mosquito, Bomb Bay Door, Landing Gear, Flaps
+Solenoids are optional via an extended constructor.
+- Added `examples/63_Mosquito_Levers` to demonstrate this.
+
 8/22/2026
 Moved the Watchdog Timer reboot() into DCSBIOSEasyMode
 

@@ -1275,9 +1275,9 @@ public:
 
 using EasyModeAnalogSyncingRocker = EasyModeAnalogSyncingRockerT<>;
 
-class EasyModeSyncingSwitch3Pos : Int16Buffer {
+class EasyModeSyncingRelativeSwitch3Pos : Int16Buffer {
 public:
-    EasyModeSyncingSwitch3Pos(
+    EasyModeSyncingRelativeSwitch3Pos(
         byte upPin,
         byte downPin,
         const char *command,
@@ -1291,7 +1291,7 @@ public:
           _mask(mask),
           _shift(shift) {}
 
-    EasyModeSyncingSwitch3Pos(
+    EasyModeSyncingRelativeSwitch3Pos(
         byte upPin,
         byte downPin,
         const char *command,
@@ -1301,7 +1301,7 @@ public:
         byte holdUpPin,
         byte holdDownPin,
         byte holdActiveLevel = HIGH)
-        : EasyModeSyncingSwitch3Pos(upPin, downPin, command, address, mask, shift) {
+        : EasyModeSyncingRelativeSwitch3Pos(upPin, downPin, command, address, mask, shift) {
         _holdUpPin = holdUpPin;
         _holdDownPin = holdDownPin;
         _holdActiveLevel = holdActiveLevel;
@@ -1309,8 +1309,8 @@ public:
     }
 
     // Registered listeners must remain at their original addresses.
-    EasyModeSyncingSwitch3Pos(const EasyModeSyncingSwitch3Pos&) = delete;
-    EasyModeSyncingSwitch3Pos& operator=(const EasyModeSyncingSwitch3Pos&) = delete;
+    EasyModeSyncingRelativeSwitch3Pos(const EasyModeSyncingRelativeSwitch3Pos&) = delete;
+    EasyModeSyncingRelativeSwitch3Pos& operator=(const EasyModeSyncingRelativeSwitch3Pos&) = delete;
 
     void loop() override {
         if (hasUpdatedData()) {

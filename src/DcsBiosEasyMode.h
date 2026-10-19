@@ -167,7 +167,7 @@ using InvertedRotarySyncingPotentiometer = EasyModeRefreshableInputT<EasyModeInv
 using BcdWheel = EasyModeRefreshableInputT<DcsBios::BcdWheel>;
 using RadioPreset = EasyModeRefreshableInputT<DcsBios::RadioPreset>;
 
-using SyncingSwitch3Pos = EasyModeSyncingSwitch3Pos;
+using SyncingRelativeSwitch3Pos = EasyModeSyncingRelativeSwitch3Pos;
 
 using IntegerBuffer = DcsBios::IntegerBuffer;
 template <unsigned int LENGTH>

@@ -17,14 +17,14 @@
  * --------GND               GND --|           |-- +5V
  *   L     PIN_FLAPS_LOCK      2 --|           |-- A7
  *         PIN_FLAPS_UP        3 --|           |-- A6 
- *   O     PIN_GEAR_LOCK       4 --|   NANO    |-- A5 
- *         PIN_GEAR_UP         5 --|           |-- A4 
- *   O     PIN_BOMB_UP         6 --|           |-- A3
- *         PIN_BOMB_DOWN       7 --|           |-- A2
- *   M     PIN_GEAR_DOWN       8 --|           |-- A1
- * ------- PIN_FLAPS_DOWN      9 --|           |-- A0 
- *                            10 --|           |-- REFâ” See NOTE 1
- *                            11 --|  +-----+  |-- 3V3â”˜ 3.3v as ADC REF (Optional)
+ *   O     PIN_GEAR_LOCK       4 --|   NANO    |-- 19/A5 PIN_BOMB_DOWN_HOLD
+ *         PIN_GEAR_UP         5 --|           |-- 18/A4 PIN_BOMB_UP_HOLD
+ *   O     PIN_BOMB_UP         6 --|           |-- 17/A3 PIN_GEAR_DOWN_HOLD
+ *         PIN_BOMB_DOWN       7 --|           |-- 16/A2 PIN_GEAR_UP_HOLD
+ *   M     PIN_GEAR_DOWN       8 --|           |-- 15/A1 PIN_FLAPS_DOWN_HOLD
+ * ------- PIN_FLAPS_DOWN      9 --|           |-- 14/A0 PIN_FLAPS_UP_HOLD
+ *                            10 --|           |-- REF┐ See NOTE 1
+ *                            11 --|  +-----+  |-- 3V3┘ 3.3v as ADC REF (Optional)
  *                            12 --|  | USB |  |-- 13
  *                                 +--+_____+--+
  * NOTE 1 - Strap REF to 3v3 if your adc inputs are 3.3v (eg some Hall Sensors are 3.3v). 
@@ -73,13 +73,17 @@ DcsBios::EasyMode::Switch2Pos FlapsGate(
     true                    // Reverse
 );
 
-// ======================================================================
-// HELPER ROUTINES
-// ======================================================================
-
-// This class will handle all the state chanages from UP, MID, DOWN
-// while coordinating with the changes DCS may make to them too
-DcsBios::EasyMode::SyncingSwitch3Pos bomb(
+// This SyncingRelativeSwitch3Pos will handle all the state changes 
+// from UP, MID, DOWN while coordinating with the changes DCS may 
+// make to them too.
+// NOTE, unlike typical Switch 3 Pos which uses absolute values for
+// the location (0,1,2), this uses logic to control relative "INC"
+// and "DEC" messages.
+// [Optional]
+// If solenoids are present to hold the lever in UP or DOWN with a 
+// spring to pull the lever back to the center (MID) it is fully 
+// automated. 
+DcsBios::EasyMode::SyncingRelativeSwitch3Pos bomb(
     PIN_BOMB_UP,                // UP detection pin
     PIN_BOMB_DOWN,              // DOWN detection pin
     "BOMB_LEVER",               // DCS Command
@@ -89,7 +93,7 @@ DcsBios::EasyMode::SyncingSwitch3Pos bomb(
     //,LOW                      // Uncomment if solenoids are active LOW
 );
 
-DcsBios::EasyMode::SyncingSwitch3Pos gear(
+DcsBios::EasyMode::SyncingRelativeSwitch3Pos gear(
     PIN_GEAR_UP,                // UP detection pin
     PIN_GEAR_DOWN,              // DOWN detection pin
     "CHASSIS_LEVER",            // DCS Command
@@ -99,7 +103,7 @@ DcsBios::EasyMode::SyncingSwitch3Pos gear(
     //,LOW                      // Uncomment if solenoids are active LOW
 );
 
-DcsBios::EasyMode::SyncingSwitch3Pos flaps(
+DcsBios::EasyMode::SyncingRelativeSwitch3Pos flaps(
     PIN_FLAPS_UP,               // UP detection pin
     PIN_FLAPS_DOWN,             // DOWN detection pin
     "FLAPS_LEVER",              // DCS Command 
