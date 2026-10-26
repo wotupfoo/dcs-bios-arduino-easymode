@@ -126,30 +126,30 @@ DcsBios::EasyMode::SyncingRelativeSwitch3Pos flaps(
  * Stacking two Motor Shields gives 8 DC motor bi-directional outputs. We use 6.
  *
  * Leonardo / Uno / Due with two Adafruit Motor Shields (V2 library):
- * Leonardo pinout (Uno uses the same D4..D11 input loom):
+ * Leonardo pinout (Uno uses the same D6..D13 input loom):
  *
- *                        +--[POWER]--[USB]--+
- *                        |     [RESET]      |
- *                        |                  |-- SCL (D3) -> shield SCL
- *                        |                  |-- SDA (D2) -> shield SDA
- *                        |                  |-- AREF
- *                      NC|                  |-- GND
- *                   IOREF|                  |-- D13
- *                   RESET|                  |-- D12
- *                     3V3|      UNO or      |-- D11 < PIN_FLAPS_DOWN
- *                      5V|     LEONARDO     |-- D10 < PIN_GEAR_DOWN
- *                     GND|                  |-- D9 < PIN_BOMB_DOWN
- *                     GND|                  |-- D8 < PIN_BOMB_UP
- *                     VIN|                  |
- *                        |                  |-- D7 < PIN_GEAR_UP
- *                      A0|                  |-- D6 < PIN_GEAR_LOCK
- *                      A1|                  |-- D5 < PIN_FLAPS_UP
- *                      A2|                  |-- D4 < PIN_FLAPS_LOCK
- *                      A3|                  |-- D3 (SCL, same pin above)
- *                      A4|       ...        |-- D2 (SDA, same pin above)
- *                      A5|       ...        |-- D1
- *                        |       ISP        |-- D0
- *                        +------------------+
+ *                        +--[POWER]--[USB]------------------------+
+ *                        |                [RESET]                 |
+ *                        |                                        |-- SCL (D3) -> shield SCL
+ *                        |                                        |-- SDA (D2) -> shield SDA
+ *                        |                                        |-- AREF
+ *                   NC --|                                        |-- GND ---------------------------+
+ *                IOREF --|                                        |-- D13 < PIN_FLAPS_DOWN           |
+ *                RESET --|                                        |-- D12 < PIN_GEAR_DOWN     L      |
+ *                  3V3 --|                 UNO or                 |-- D11 < PIN_BOMB_DOWN            |
+ *                   5V --|                LEONARDO                |-- D10 < PIN_BOMB_UP       O      |
+ *                  GND --|                                        |-- D9  < PIN_GEAR_UP              |
+ *                  GND --|                                        |-- D8  < PIN_GEAR_LOCK     O      |
+ *                  VIN --|                                        |                                  |
+ *                        |                                        |-- D7  < PIN_FLAPS_UP      M      |
+ *                   A0 --|                                        |-- D6  < PIN_FLAPS_LOCK ----------+
+ *                   A1 --|                                        |-- D5
+ *                   A2 --|                                        |-- D4
+ *                   A3 --|                                        |-- D3 (SCL, same pin above)
+ *                   A4 --|                  ...                   |-- D2 (SDA, same pin above)
+ *                   A5 --|                  ...                   |-- D1
+ *                        |                  ISP                   |-- D0
+ *                        +----------------------------------------+
  *
  * Due pinout, component side, USB/power at the top:
  * Reference: documentation/images/Arduino/Pinout-Due.png
@@ -159,36 +159,36 @@ DcsBios::EasyMode::SyncingRelativeSwitch3Pos flaps(
  *                        |                                        |-- SCL1 -> shield SCL (Wire1)
  *                        |                                        |-- SDA1 -> shield SDA (Wire1)
  *                        |                                        |-- AREF
- *                      NC|                                        |-- GND
- *                   IOREF|                                        |-- D13
- *                   RESET|                                        |-- D12
- *                     3V3|                                        |-- D11 < PIN_FLAPS_DOWN
- *                      5V|                                        |-- D10 < PIN_GEAR_DOWN
- *                     GND|            ARDUINO DUE 3.3V            |-- D9  < PIN_BOMB_DOWN
- *                     GND|                                        |-- D8  < PIN_BOMB_UP
- *                     VIN|                                        |-- D7  < PIN_GEAR_UP
- *                        |                                        |-- D6  < PIN_GEAR_LOCK
- *                      A0|                                        |-- D5  < PIN_FLAPS_UP
- *                      A1|                                        |-- D4  < PIN_FLAPS_LOCK
- *                      A2|                                        |-- D3
- *                      A3|                                        |-- D2
- *                      A4|                                        |-- D1 / TX0
- *                      A5|                  ...                   |-- D0 / RX0
- *                      A6|                  ...                   |
- *                      A7|                  SPI                   |-- D14 / TX3
+ *                   NC --|                                        |-- GND ---------------------------+
+ *                IOREF --|                                        |-- D13 < PIN_FLAPS_DOWN           |
+ *                RESET --|                                        |-- D12 < PIN_GEAR_DOWN     L      |
+ *                  3V3 --|                                        |-- D11 < PIN_BOMB_DOWN     O      |
+ *                   5V --|                                        |-- D10 < PIN_BOMB_UP       O      |
+ *                  GND --|            ARDUINO DUE 3.3V            |-- D9  < PIN_GEAR_UP       M      |
+ *                  GND --|                                        |-- D8  < PIN_GEAR_LOCK            |
+ *                  VIN --|                                        |-- D7  < PIN_FLAPS_UP             |
+ *                        |                                        |-- D6  < PIN_FLAPS_LOCK ----------+
+ *                   A0 --|                                        |-- D5
+ *                   A1 --|                                        |-- D4
+ *                   A2 --|                                        |-- D3
+ *                   A3 --|                                        |-- D2
+ *                   A4 --|                                        |-- D1 / TX0
+ *                   A5 --|                  ...                   |-- D0 / RX0
+ *                   A6 --|                  ...                   |
+ *                   A7 --|                  SPI                   |-- D14 / TX3
  *                        |                                        |-- D15 / RX3
- *                      A8|                              [ERASE]   |-- D16 / TX2
- *                      A9|                                        |-- D17 / RX2
- *                     A10|                                        |-- D18 / TX1
- *                     A11|                                        |-- D19 / RX1
- *                    DAC0|                                        |-- D20 / SDA (Wire, not shield bus)
- *                    DAC1|                                        |-- D21 / SCL (Wire, not shield bus)
- *                   CANRX|                                        |
- *                   CANTX|                                        |
+ *                   A8 --|                              [ERASE]   |-- D16 / TX2
+ *                   A9 --|                                        |-- D17 / RX2
+ *                  A10 --|                                        |-- D18 / TX1
+ *                  A11 --|                                        |-- D19 / RX1
+ *                 DAC0 --|                                        |-- D20 / SDA (Wire, not shield bus)
+ *                 DAC1 --|                                        |-- D21 / SCL (Wire, not shield bus)
+ *                CANRX --|                                        |
+ *                CANTX --|                                        |
  *                        |      [ D22..D53 DUAL-ROW HEADER ]      |
  *                        +----------------------------------------+
  *
- * D4..D11 form one input loom, with a common GND return.
+ * D6..D13 form one input loom, with a common GND return.
  * PROG USB is the Programming port used by Serial in this sketch.
  * SCL1/SDA1 near AREF are the stacked shield bus; use Wire1.
  *
@@ -197,7 +197,7 @@ DcsBios::EasyMode::SyncingRelativeSwitch3Pos flaps(
  * Due: stacked shields use SDA1/SCL1 near AREF (Wire1), not D20/D21.
  * Set shield logic Vcc and I2C pull-ups to 3.3 V for Due.
  * Due uses the Programming USB port (Serial); calibration is not persisted.
- * All three boards use the same eight input pins on D4..D11.
+ * All three boards use the same eight input pins on D6..D13.
  * 
  * AdaFruit MotorShield V3 (or clone) I2C driven 4xDC Motor or 2xStepper Motor board
  * https://www.amazon.com/dp/B0D9V7QHNX
@@ -210,21 +210,21 @@ DcsBios::EasyMode::SyncingRelativeSwitch3Pos flaps(
  *                        | [POWER + -]       [ M2 ][GND][ M1 ]       [SERVO 1/2] |
  *                        |  [VIN JUMPER]                                [RESET]  |-- SCL -> Leo D3 / Uno A5 / Due SCL1
  *                        |                                                       |-- SDA -> Leo D2 / Uno A4 / Due SDA1
- *                  IOREF |                                                       |-- AREF
- *                  RESET |           o o o o o o o o o o o o o o o o o           |-- GND
- *                    3V3 |           o o o o o o o o o o o o o o o o o           |-- D13
- *                     5V |           o o o o o o o o o o o o o o o o o           |-- D12
- *                    GND |                                                       |-- D11
- *                    GND |             A4 :                                      |-- D10
- *                    VIN |             A3 :      +---------+                     |-- D9
+ *                IOREF --|                                                       |-- AREF
+ *                RESET --|           o o o o o o o o o o o o o o o o o           |-- GND
+ *                  3V3 --|           o o o o o o o o o o o o o o o o o           |-- D13
+ *                   5V --|           o o o o o o o o o o o o o o o o o           |-- D12
+ *                  GND --|                                                       |-- D11
+ *                  GND --|             A4 :                                      |-- D10
+ *                  VIN --|             A3 :      +---------+                     |-- D9
  *                        |      LOGIC  A2 :      | PCA9685 |                     |-- D8
  *                        |      3V/5V  A1 :      |I2C->PWM |                     |
- *                     A0 |             A0 :      +---------+                     |-- D7
- *                     A1 |                ^                                      |-- D6
- *                     A2 |          Address jumpers                              |-- D5
- *                     A3 |      (not Arduino analog pins)                        |-- D4
- *           A4 (Uno SDA) |                                                       |-- D3 (Leo SCL)
- *           A5 (Uno SCL) |         [TB6612]                     [TB6612]         |-- D2 (Leo SDA)
+ *                   A0 --|             A0 :      +---------+                     |-- D7
+ *                   A1 --|                ^                                      |-- D6
+ *                   A2 --|          Address jumpers                              |-- D5
+ *                   A3 --|      (not Arduino analog pins)                        |-- D4
+ *         A4 (Uno SDA) --|                                                       |-- D3 (Leo SCL)
+ *         A5 (Uno SCL) --|         [TB6612]                     [TB6612]         |-- D2 (Leo SDA)
  *                        |                                                       |-- D1
  *                        |                            [ M3 ][GND][ M4 ]          |-- D0
  *                        +-------------------------------------------------------+
@@ -256,19 +256,19 @@ DcsBios::EasyMode::SyncingRelativeSwitch3Pos flaps(
  * Wire each magnet so FORWARD pulls and BACKWARD pushes.
  * Channels use fullOn(): set coil power with the external supply voltage.
  * A4/A5 are reserved for I2C on Uno and unused as inputs on Leonardo.
- * All eight switch inputs form one loom on D4..D11, in Nano input order.
- * Include a common GND return in the input loom.
+ * All eight switch inputs form one loom on D6..D13, in Nano input order.
+ * Include the GND pin adjacent to D13 as the common return in the input loom.
  */
 
-// Digital inputs (ACTIVE LOW): one loom on D4..D11, in Nano input order.
-#define PIN_FLAPS_LOCK          4
-#define PIN_FLAPS_UP            5
-#define PIN_GEAR_LOCK           6
-#define PIN_GEAR_UP             7
-#define PIN_BOMB_UP             8
-#define PIN_BOMB_DOWN           9
-#define PIN_GEAR_DOWN           10
-#define PIN_FLAPS_DOWN          11
+// Digital inputs (ACTIVE LOW): one loom on D6..D13, in Nano input order.
+#define PIN_FLAPS_LOCK          6
+#define PIN_FLAPS_UP            7
+#define PIN_GEAR_LOCK           8
+#define PIN_GEAR_UP             9
+#define PIN_BOMB_UP             10
+#define PIN_BOMB_DOWN           11
+#define PIN_GEAR_DOWN           12
+#define PIN_FLAPS_DOWN          13
 
 Adafruit_MotorShield magnetShield1(0x40);   // PCA9685 chipset default address
 Adafruit_MotorShield magnetShield2(0x41);   // Make sure you solder the A0 jumper!
