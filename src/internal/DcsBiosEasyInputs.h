@@ -1291,6 +1291,7 @@ public:
           _mask(mask),
           _shift(shift) {}
 
+    // "pull" only - ULN2003 Darlington Driver On/Off are a single pin to the electromagnet: UP POS, DOWN POS.
     EasyModeSyncingRelativeSwitch3Pos(
         byte upPin,
         byte downPin,
@@ -1302,11 +1303,51 @@ public:
         byte holdDownPin,
         byte holdActiveLevel = HIGH)
         : EasyModeSyncingRelativeSwitch3Pos(upPin, downPin, command, address, mask, shift) {
-        _holdUpPin = holdUpPin;
-        _holdDownPin = holdDownPin;
+        _holdUp.posPin = holdUpPin;
+        _holdDown.posPin = holdDownPin;
         _holdActiveLevel = holdActiveLevel;
         _hasHoldOutputs = true;
     }
+
+    // "pull" + "push" - H-bridge pins are paired by electromagnet: UP POS/NEG, DOWN POS/NEG.
+     EasyModeSyncingRelativeSwitch3Pos(
+        byte upPin,
+        byte downPin,
+        const char *command,
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        byte holdUpPosPin,
+        byte holdUpNegPin,
+        byte holdDownPosPin,
+        byte holdDownNegPin)
+        : EasyModeSyncingRelativeSwitch3Pos(upPin, downPin, command, address, mask, shift,
+                                           holdUpPosPin, holdDownPosPin) {
+        _holdUp.negPin = holdUpNegPin;
+        _holdDown.negPin = holdDownNegPin;
+        _hasHBridge = true;
+    }
+
+#ifdef _Adafruit_MotorShield_h_
+    // Include <Adafruit_MotorShield.h> before <DcsBiosEasyMode.h> to enable this overload.
+    // Call both shields' begin() methods before calling the lever's begin().
+    EasyModeSyncingRelativeSwitch3Pos(
+        byte upPin,
+        byte downPin,
+        const char *command,
+        unsigned int address,
+        unsigned int mask,
+        unsigned char shift,
+        Adafruit_DCMotor* holdUpMotor,
+        Adafruit_DCMotor* holdDownMotor)
+        : EasyModeSyncingRelativeSwitch3Pos(upPin, downPin, command, address, mask, shift) {
+        _holdUp.motor = holdUpMotor;
+        _holdDown.motor = holdDownMotor;
+        _hasMotorShield = true;
+        _hasHoldOutputs = holdUpMotor != nullptr && holdDownMotor != nullptr;
+        _hasHBridge = true;
+    }
+#endif
 
     // Registered listeners must remain at their original addresses.
     EasyModeSyncingRelativeSwitch3Pos(const EasyModeSyncingRelativeSwitch3Pos&) = delete;
@@ -1316,19 +1357,39 @@ public:
         if (hasUpdatedData()) {
             _dcsState = (Int16Buffer::getData() & _mask) >> _shift;
             _hasDcsState = true;
-            updateHoldOutputs();
         }
+        // Service release timers even when no new DCS packet arrives.
+        updateHoldOutputs();
     }
 
     void begin() {
         _begun = false;
         if (_hasHoldOutputs) {
-            // Set inactive levels before enabling the output drivers.
-            byte inactive = _holdActiveLevel == HIGH ? LOW : HIGH;
-            digitalWrite(_holdUpPin, inactive);
-            digitalWrite(_holdDownPin, inactive);
-            pinMode(_holdUpPin, OUTPUT);
-            pinMode(_holdDownPin, OUTPUT);
+#ifdef _Adafruit_MotorShield_h_
+            if (_hasMotorShield) {
+                // Release before enabling continuous DC; coil power is set by the supply.
+                _holdUp.motor->run(RELEASE);
+                _holdDown.motor->run(RELEASE);
+                _holdUp.motor->fullOn();
+                _holdDown.motor->fullOn();
+            }
+            else
+#endif
+            {
+                // Set inactive levels before enabling the output drivers.
+                byte inactive = _holdActiveLevel == HIGH ? LOW : HIGH;
+                digitalWrite(_holdUp.posPin, inactive);
+                digitalWrite(_holdDown.posPin, inactive);
+                if (_hasHBridge) {
+                    digitalWrite(_holdUp.negPin, LOW);
+                    digitalWrite(_holdDown.negPin, LOW);
+                    pinMode(_holdUp.negPin, OUTPUT);
+                    pinMode(_holdDown.negPin, OUTPUT);
+                }
+                pinMode(_holdUp.posPin, OUTPUT);
+                pinMode(_holdDown.posPin, OUTPUT);
+            }
+            _holdUp.state = _holdDown.state = 0;
         }
         pinMode(_upPin, INPUT_PULLUP);
         pinMode(_downPin, INPUT_PULLUP);
@@ -1350,8 +1411,10 @@ public:
             _candidateTime = millis();
         }
 
-        if (millis() - _candidateTime < 25)
+        if (millis() - _candidateTime < 25) {
+            updateHoldOutputs();
             return;
+        }
 
         _holdPositionValid = true;
         if (_position != _candidate) {
@@ -1391,9 +1454,58 @@ private:
     bool _hasHoldOutputs = false;
     bool _begun = false;
     bool _holdPositionValid = false;
-    byte _holdUpPin = 0;
-    byte _holdDownPin = 0;
+    struct Electromagnet {
+#ifdef _Adafruit_MotorShield_h_
+        Adafruit_DCMotor* motor = nullptr;
+#endif
+        byte posPin = 0;
+        byte negPin = 0;
+        byte state = 0; // 0 = off, 1 = pull, 2 = timed push
+        unsigned long pushStarted = 0;
+    };
+    Electromagnet _holdUp;
+    Electromagnet _holdDown;
+#ifdef _Adafruit_MotorShield_h_
+    bool _hasMotorShield = false;
+#endif
+    bool _hasHBridge = false;
     byte _holdActiveLevel = HIGH;
+
+    void updateElectromagnet(Electromagnet& magnet, bool hold, unsigned long now) {
+        byte next = 0;
+        if (hold) {
+            next = 1;
+        }
+        else if (_hasHBridge) {
+            if (magnet.state == 1) {
+                // Only the falling edge of a pull starts the release pulse.
+                magnet.pushStarted = now;
+                next = 2;
+            }
+            else if (magnet.state == 2 && (unsigned long)(now - magnet.pushStarted) < 500) {
+                next = 2;
+            }
+        }
+        if (next == magnet.state) return;
+
+#ifdef _Adafruit_MotorShield_h_
+        if (_hasMotorShield) {
+            magnet.motor->run(RELEASE);
+            if (next == 1) magnet.motor->run(FORWARD);
+            else if (next == 2) magnet.motor->run(BACKWARD);
+            magnet.state = next;
+            return;
+        }
+#endif
+
+        // Remove drive before applying the opposite polarity.
+        byte inactive = _holdActiveLevel == HIGH ? LOW : HIGH;
+        digitalWrite(magnet.posPin, inactive);
+        if (_hasHBridge) digitalWrite(magnet.negPin, LOW);
+        if (next == 1) digitalWrite(magnet.posPin, _holdActiveLevel);
+        else if (next == 2) digitalWrite(magnet.negPin, HIGH);
+        magnet.state = next;
+    }
 
     void updateHoldOutputs() {
         if (!_hasHoldOutputs || !_begun) return;
@@ -1401,13 +1513,9 @@ private:
         bool valid = _hasDcsState && _holdPositionValid;
         bool holdUp = valid && _position == 2 && _dcsState == 2;
         bool holdDown = valid && _position == 0 && _dcsState == 0;
-        byte inactive = _holdActiveLevel == HIGH ? LOW : HIGH;
-
-        // Release inactive ends before energizing the selected end.
-        if (!holdUp) digitalWrite(_holdUpPin, inactive);
-        if (!holdDown) digitalWrite(_holdDownPin, inactive);
-        if (holdUp) digitalWrite(_holdUpPin, _holdActiveLevel);
-        if (holdDown) digitalWrite(_holdDownPin, _holdActiveLevel);
+        unsigned long now = millis();
+        updateElectromagnet(_holdUp, holdUp, now);
+        updateElectromagnet(_holdDown, holdDown, now);
     }
 
     uint8_t _position = 1;

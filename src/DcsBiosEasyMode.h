@@ -3,17 +3,11 @@
 
 #include <Arduino.h>
 
-// Watchdog Timer/Reboot mechanism for each architecture
-#if defined(__AVR__)                        // nano, mega etc
-#include <avr/wdt.h>
-#elif defined(ARDUINO_GENERIC_STM32F103C)   // Bluepill STM32F10C
-#include <libmaple/iwdg.h>
-#endif
-
 #include <AccelStepper.h>
 #include <DcsBios.h>
 
 #include "internal/DcsBiosEasyCommon.h"
+#include "internal/DcsBiosEasyWatchdog.h"
 #include "internal/DcsBiosEasyEEPROM.h"
 #include "internal/DcsBiosEasyInputs.h"
 #include "internal/DcsBiosEasyServos.h"
@@ -72,6 +66,8 @@ inline bool calibrationIsValid() {
 // Architecture check
 #if defined(__AVR__)
 // AVR chips
+#elif defined(ARDUINO_ARCH_SAM)
+// Arduino Due
 #elif defined(ARDUINO_GENERIC_STM32F103C)
 // STM32 chips
 #else
@@ -85,6 +81,8 @@ inline void reboot_setup() {
     // Make it 4 seconds so the dcs-bios::loop() can reset it.
 #if defined(__AVR__)
     wdt_enable(WDTO_4S);
+#elif defined(ARDUINO_ARCH_SAM)
+    watchdogEnable(4000);
 #elif defined(ARDUINO_GENERIC_STM32F103C)
     // For STM32, once started, the independent watchdog cannot be turned off.
     iwdg_init(IWDG_PRE_8, 20000); // 40kHz->5kHz->20,000 count = 4 seconds
@@ -94,6 +92,8 @@ inline void reboot_setup() {
 inline void watchdog_refresh() {
 #if defined(__AVR__)
     wdt_reset();
+#elif defined(ARDUINO_ARCH_SAM)
+    watchdogReset();
 #elif defined(ARDUINO_GENERIC_STM32F103C)
     iwdg_feed(void);
 #endif

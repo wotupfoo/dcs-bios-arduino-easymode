@@ -1,1 +1,10 @@
-default_fqbn: arduino:avr:nano
+#Arduino Small Boards
+#default_fqbn: arduino:avr:nano
+
+#Arduino Standard Boards
+#default_fqbn: arduino:avr:uno
+#default_fqbn: arduino:avr:leonardo
+
+#Arduino Due w/ SAM3X8E ARM Cortex-M3
+#default_fqbn: arduino:sam:arduino_due_x     #Normal Port (Serial1 - don't use)
+default_fqbn: arduino:sam:arduino_due_x_dbg  #Debugging Port (Serial - common to all builds)

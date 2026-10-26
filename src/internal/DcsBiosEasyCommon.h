@@ -14,6 +14,8 @@ enum class EasyModeDir {
 
 #if defined(__AVR__)
 static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 1024; // 10 bit
+#elif defined(ARDUINO_ARCH_SAM)
+static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 1024; // Due core defaults to 10-bit analogRead()
 #elif defined(ESP32)
 static const unsigned int EASYMODE_DEFAULT_ADC_SPAN = 4096; // 12 bit
 #else

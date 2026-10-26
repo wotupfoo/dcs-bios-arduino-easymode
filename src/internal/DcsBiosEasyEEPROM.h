@@ -5,7 +5,11 @@
 #error Do not call DcsBiosEasyEEPROM.h directly. Include DcsBiosEasyMode.h instead.
 #endif
 
+#if defined(ARDUINO_ARCH_SAM)
+#warning EasyMode persistent calibration is unavailable on Due; calibration is RAM-only.
+#else
 #include <EEPROM.h>
+#endif
 
 namespace DcsBios {
 
@@ -13,6 +17,7 @@ static const unsigned int EASYMODE_EEPROM_MAGIC = 0xD5E1;
 static const unsigned char EASYMODE_EEPROM_VERSION = 2;
 static const int EASYMODE_EEPROM_DEFAULT_ADDR = 0;
 
+#if !defined(ARDUINO_ARCH_SAM)
 struct EasyModeEepromHeader {
     unsigned int magic;
     unsigned char version;
@@ -116,6 +121,23 @@ inline bool saveEasyModeCalibrationToEEPROMIfChanged(int address = EASYMODE_EEPR
     return true;
 }
 
+#else
+// Due has no onboard EEPROM. Keep the API available without pretending to save.
+inline bool loadEasyModeCalibrationFromEEPROM(int address = EASYMODE_EEPROM_DEFAULT_ADDR) {
+    (void)address;
+    return false;
+}
+
+inline void saveEasyModeCalibrationToEEPROM(int address = EASYMODE_EEPROM_DEFAULT_ADDR) {
+    (void)address;
+}
+
+inline bool saveEasyModeCalibrationToEEPROMIfChanged(int address = EASYMODE_EEPROM_DEFAULT_ADDR) {
+    (void)address;
+    return false;
+}
+#endif
+
 inline bool serviceEasyModeCalibration(Print& out, int address = EASYMODE_EEPROM_DEFAULT_ADDR) {
     bool changed = updateEasyModeCalibration();
 
@@ -134,7 +156,11 @@ inline bool serviceEasyModeCalibration(Print& out, int address = EASYMODE_EEPROM
     out.println(changed ? 1 : 0);
 
     if (changed) {
+#if defined(ARDUINO_ARCH_SAM)
+        out.println("Calibration is RAM-only on Due; not saved.");
+#else
         out.println("Writing EEPROM");
+#endif
         saveEasyModeCalibrationToEEPROMIfChanged(address);
     }
 
