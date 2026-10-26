@@ -106,9 +106,6 @@ bool calibrationMode;
 // SETUP
 // ======================================================================
 void setup() {
-    // Disable the Watchdog Timer (used to reboot out of Calibration mode)
-    DcsBios::EasyMode::reboot_disable();
-
 #if defined(ARDUINO_AVR_NANO)
     /* Optionally set the Nano ADC to use a clean external reference 
      * voltage for the analog to digital (adc) converter.
@@ -197,5 +194,6 @@ void loop() {
         // ====================
 
         DcsBios::EasyMode::loop();
+        DcsBios::EasyMode::watchdog_refresh();
     }
 }
