@@ -985,6 +985,33 @@ The repository also includes larger, aircraft-specific examples for Spitfire and
 - Hall-sensor calibration using the same EasyMode EEPROM service path as the throttle quadrant.
 - Placeholder trim gauge definitions are included because the current Mosquito DCS-BIOS definitions expose rocker state but not continuous trim feedback exports.
 
+### Mosquito Three-Position Levers
+
+`examples/63_Mosquito_Levers/63_Mosquito_Levers.ino` uses `SyncingSwitch3Pos` for bomb bay, landing gear, and flaps levers, alongside `Switch2Pos` gate inputs.
+
+```cpp
+DcsBios::EasyMode::SyncingSwitch3Pos bomb(
+    PIN_BOMB_UP, PIN_BOMB_DOWN,
+    "BOMB_LEVER", Mosquito_BOMB_DOORS_LVR
+);
+```
+
+The two input pins use `INPUT_PULLUP`: UP is position `2`, neither input active is MID (`1`), and DOWN is `0`. The address macro supplies the DCS feedback address, mask, and shift. Call `bomb.begin()` in `setup()` and `bomb.update()` after `DcsBios::EasyMode::loop()` in the sketch loop. `bomb.position()` returns the tracked physical position.
+
+After a physical position change passes the 25 ms debounce, the class compares it with DCS feedback and sends one `INC` or `DEC` if needed. It does not continuously force DCS to match the hardware or send a command solely because DCS feedback changes. Startup assumes DCS MID until feedback arrives.
+
+For optional hold solenoids, append two driver output pins:
+
+```cpp
+DcsBios::EasyMode::SyncingSwitch3Pos bomb(
+    PIN_BOMB_UP, PIN_BOMB_DOWN,
+    "BOMB_LEVER", Mosquito_BOMB_DOORS_LVR,
+    PIN_HOLD_UP, PIN_HOLD_DOWN
+);
+```
+
+Outputs default to active `HIGH`; append `LOW` after the output pins for active-low drivers. Both start inactive. An end energizes only when the debounced physical position and valid DCS feedback both select that end. DCS MID releases both outputs, allowing a spring-return lever to return to center. The user must hold the lever at the end until feedback confirms the position. Without the optional pins, the class performs no hold-output pin operations. Output pins control external solenoid drivers.
+
 ## Advanced Examples
 The following examples expand on the lessons learned in examples 0 through 7.
 Unlike the starting examples that use beginner-friendly defaults for a 28BYJ-48 + ULN2003 stepper or an SG90/MG90-style servo, these advanced examples use the generic `Stepper` and `Servo` types where you tune more of the hardware behavior yourself.
