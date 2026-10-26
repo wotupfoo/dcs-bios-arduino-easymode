@@ -1,13 +1,13 @@
 #ifndef __DCSBIOS_EASY_MODE_WATCHDOG_H
 #define __DCSBIOS_EASY_MODE_WATCHDOG_H
 
-#ifndef __DCSBIOS_EASY_MODE_H
-#error Do not call DcsBiosEasyWatchdog.h directly. Include DcsBiosEasyMode.h instead.
+#if !defined(__DCSBIOS_EASY_MODE_H) && !defined(__DCSBIOS_EASY_MODE_WATCHDOG_CPP)
+#error Do not call DcsBiosEasyWatchdog.h directly (except DcsBiosEasyWatchdog.cpp). Include DcsBiosEasyMode.h instead.
 #endif
 
 // Watchdog Timer/Reboot mechanism for each architecture
 // DO NOT put in the DcsBios or DcsBios::EasyMode namespace
-#if defined(__AVR__)                        // nano, mega etc
+#if defined(__AVR__)                        // nano, uno, mega, leonardo etc
 #include <avr/wdt.h>
 #elif defined(ARDUINO_ARCH_SAM)             // Arduino Due
 #include <watchdog.h>
